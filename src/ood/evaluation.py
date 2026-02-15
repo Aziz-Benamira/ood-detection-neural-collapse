@@ -1,0 +1,159 @@
+"""
+OOD detection evaluation utilities.
+
+Provides AUROC computation and a convenience function that runs all 6
+OOD scoring methods in one call.
+
+Author: Aziz BEN AMIRA
+Course: Theory of Deep Learning (MVA + ENSTA)
+"""
+
+import logging
+from typing import Dict, Optional, Tuple
+
+import numpy as np
+from sklearn.metrics import roc_auc_score
+
+from .scores import (
+    score_msp,
+    score_max_logit,
+    score_energy,
+    score_mahalanobis,
+    compute_class_statistics,
+    compute_vim_parameters,
+    score_vim,
+    compute_neco_parameters,
+    score_neco,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def compute_auroc(id_scores: np.ndarray, ood_scores: np.ndarray) -> float:
+    """
+    Compute AUROC for OOD detection.
+
+    Convention: ID samples are labeled 1 (positive), OOD samples labeled 0.
+    A higher score should indicate ID, so AUROC measures how well the score
+    separates the two.
+
+    Parameters
+    ----------
+    id_scores : np.ndarray
+        Scores for in-distribution samples.
+    ood_scores : np.ndarray
+        Scores for out-of-distribution samples.
+
+    Returns
+    -------
+    auroc : float
+        Area Under the ROC Curve.
+    """
+    labels = np.concatenate([
+        np.ones(len(id_scores)),    # ID = positive class
+        np.zeros(len(ood_scores)),  # OOD = negative class
+    ])
+    scores = np.concatenate([id_scores, ood_scores])
+    return roc_auc_score(labels, scores)
+
+
+def evaluate_all_ood_methods(
+    model,
+    train_features: np.ndarray,
+    train_logits: np.ndarray,
+    train_labels: np.ndarray,
+    id_features: np.ndarray,
+    id_logits: np.ndarray,
+    ood_features: np.ndarray,
+    ood_logits: np.ndarray,
+    num_classes: int = 100,
+    temperature: float = 1.0,
+) -> Dict[str, dict]:
+    """
+    Run all 6 OOD scoring methods and return results.
+
+    Parameters
+    ----------
+    model : nn.Module
+        Trained model (needed for ViM weight extraction).
+    train_features, train_logits, train_labels : np.ndarray
+        Training set features / logits / labels (for fitting Mahalanobis, ViM, NECO).
+    id_features, id_logits : np.ndarray
+        In-distribution test features / logits.
+    ood_features, ood_logits : np.ndarray
+        Out-of-distribution features / logits.
+    num_classes : int
+    temperature : float
+        Temperature for the energy score.
+
+    Returns
+    -------
+    results : dict
+        ``{method_name: {'id': scores, 'ood': scores, 'auroc': float}}``.
+    """
+    results: Dict[str, dict] = {}
+
+    # === MSP ===
+    id_msp = score_msp(id_logits)
+    ood_msp = score_msp(ood_logits)
+    results['MSP'] = {'id': id_msp, 'ood': ood_msp, 'auroc': compute_auroc(id_msp, ood_msp)}
+    logger.info("MSP          AUROC: %.4f", results['MSP']['auroc'])
+
+    # === Max Logit ===
+    id_ml = score_max_logit(id_logits)
+    ood_ml = score_max_logit(ood_logits)
+    results['Max Logit'] = {'id': id_ml, 'ood': ood_ml, 'auroc': compute_auroc(id_ml, ood_ml)}
+    logger.info("Max Logit    AUROC: %.4f", results['Max Logit']['auroc'])
+
+    # === Energy ===
+    id_energy = score_energy(id_logits, temperature)
+    ood_energy = score_energy(ood_logits, temperature)
+    results['Energy'] = {'id': id_energy, 'ood': ood_energy,
+                         'auroc': compute_auroc(id_energy, ood_energy)}
+    logger.info("Energy       AUROC: %.4f", results['Energy']['auroc'])
+
+    # === Mahalanobis ===
+    logger.info("Computing class statistics for Mahalanobis...")
+    class_means, shared_cov, precision = compute_class_statistics(
+        train_features, train_labels, num_classes,
+    )
+    id_maha = score_mahalanobis(id_features, class_means, precision)
+    ood_maha = score_mahalanobis(ood_features, class_means, precision)
+    results['Mahalanobis'] = {'id': id_maha, 'ood': ood_maha,
+                              'auroc': compute_auroc(id_maha, ood_maha)}
+    logger.info("Mahalanobis  AUROC: %.4f", results['Mahalanobis']['auroc'])
+
+    # === ViM ===
+    logger.info("Computing ViM parameters...")
+    null_space_proj, vim_alpha, vim_feature_mean = compute_vim_parameters(
+        model, train_features, train_logits, num_classes,
+    )
+    id_vim = score_vim(id_features, id_logits, null_space_proj, vim_alpha, vim_feature_mean)
+    ood_vim = score_vim(ood_features, ood_logits, null_space_proj, vim_alpha, vim_feature_mean)
+    results['ViM'] = {'id': id_vim, 'ood': ood_vim,
+                      'auroc': compute_auroc(id_vim, ood_vim)}
+    logger.info("ViM          AUROC: %.4f", results['ViM']['auroc'])
+
+    # === NECO ===
+    logger.info("Computing NECO parameters...")
+    neco_normalized_means, neco_global_mean = compute_neco_parameters(
+        train_features, train_labels, num_classes,
+    )
+    id_neco = score_neco(id_features, neco_normalized_means, neco_global_mean)
+    ood_neco = score_neco(ood_features, neco_normalized_means, neco_global_mean)
+    results['NECO'] = {'id': id_neco, 'ood': ood_neco,
+                       'auroc': compute_auroc(id_neco, ood_neco)}
+    logger.info("NECO         AUROC: %.4f", results['NECO']['auroc'])
+
+    # Attach fitted parameters so downstream code (e.g. visualization) can reuse them
+    results['_fitted'] = {
+        'class_means': class_means,
+        'precision': precision,
+        'null_space_proj': null_space_proj,
+        'vim_alpha': vim_alpha,
+        'vim_feature_mean': vim_feature_mean,
+        'neco_normalized_means': neco_normalized_means,
+        'neco_global_mean': neco_global_mean,
+    }
+
+    return results

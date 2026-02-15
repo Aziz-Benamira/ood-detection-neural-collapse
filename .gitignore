@@ -1,0 +1,47 @@
+# Exclude Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Exclude data files (too large for GitHub)
+data/
+*.tar
+*.tar.gz
+*.zip
+
+# Exclude model checkpoints (too large - 2.6GB!)
+outputs/checkpoints/checkpoint_epoch*.pth
+*.pth
+*.pkl
+
+# Keep only best model and results
+!outputs/checkpoints/best_model.pth
+outputs/results/
+outputs/plots/
+
+# Exclude logs
+logs/
+*.log
+*.out
+*.err
+
+# Exclude virtual environment
+venv/
+env/
+ENV/
+
+# Exclude IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude temporary files
+*.tmp
+*.bak
+*~
