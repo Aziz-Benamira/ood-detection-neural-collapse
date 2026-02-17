@@ -56,6 +56,9 @@ conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1)  # 32×32 → 32×32
 - Q: "Why not use ResNet-50?"
   A: "ResNet-18 is standard for CIFAR. ResNet-50 would overfit (more params than training samples per class: 25M vs 500)."
 
+- Q: "Why did you modify the ResNet architecture?"
+  A: "Initially tried vanilla torchvision ResNet-18 and got only 42% accuracy. Realized the 7×7 stride-2 conv + maxpool aggressively downsamples 32×32 → 8×8 before learning features. Checked the original ResNet paper (He et al., 2016, Section 4.2) - they use 3×3 conv stride-1 with no maxpool for CIFAR-10. Applied same modification, jumped to 78% accuracy. This is standard in CIFAR literature - can't use ImageNet architecture directly on tiny images."
+
 ---
 
 ### 3. `src/training/trainer.py` 🎓

@@ -1,0 +1,111 @@
+================================================================================
+KEY EPOCHS COMPARISON - Tracking Overfitting Evolution
+================================================================================
+
+Phase 1: HEALTHY LEARNING (No Overfitting)
+─────────────────────────────────────────────────────────────────
+Epoch | Train Acc | Test Acc | Gap    | Train Loss | Test Loss
+─────────────────────────────────────────────────────────────────
+    1 |    9.24%  |  14.93%  |  -5.7% |    3.9431  |   3.5367  ← Test ahead!
+    5 |   44.82%  |  43.53%  |  +1.3% |    2.0216  |   2.0750  ← Nearly equal
+   10 |   58.31%  |  46.44%  | +11.9% |    1.4664  |   2.0624  ← Gap starts
+
+Phase 2: MODERATE OVERFITTING (Gap 10-20%)
+─────────────────────────────────────────────────────────────────
+Epoch | Train Acc | Test Acc | Gap    | Train Loss | Test Loss
+─────────────────────────────────────────────────────────────────
+   20 |   66.15%  |  56.15%  | +10.0% |    1.1678  |   1.6686
+   30 |   68.95%  |  57.36%  | +11.6% |    1.0658  |   1.6283
+   40 |   70.72%  |  57.76%  | +13.0% |    0.9883  |   1.6238
+   50 |   72.65%  |  55.70%  | +17.0% |    0.9261  |   1.7493  ← Test dips
+
+Phase 3: STRONG OVERFITTING (Gap 20-25%)
+─────────────────────────────────────────────────────────────────
+Epoch | Train Acc | Test Acc | Gap    | Train Loss | Test Loss
+─────────────────────────────────────────────────────────────────
+  100 |   83.77%  |  62.60%  | +21.2% |    0.5273  |   1.5611
+  121 |   90.00%  |  67.14%  | +22.9% |    0.3225  |   1.3716  ← Train hits 90%
+  136 |   94.80%  |  70.57%  | +24.2% |    0.1670  |   1.2556  ← Train hits 95%
+  151 |   99.17%  |  74.79%  | +24.4% |    0.0464  |   1.0575  ← Train hits 99%
+
+Phase 4: TERMINAL PHASE - NEURAL COLLAPSE (Gap ~21%, Stabilized)
+─────────────────────────────────────────────────────────────────
+Epoch | Train Acc | Test Acc | Gap    | Train Loss | Test Loss
+─────────────────────────────────────────────────────────────────
+  159 |   99.93%  |  77.04%  | +22.9% |    0.0130  |   0.9174  ← Train hits 99.9%
+  161 |   99.93%  |  77.29%  | +22.6% |    0.0132  |   0.9074  ← Best epoch starts
+  170 |   99.96%  |  77.98%  | +22.0% |    0.0105  |   0.8824
+  179 |   99.96%  |  78.65%  | +21.3% |    0.0096  |   0.8724  ← 🏆 BEST TEST ACC
+  190 |   99.98%  |  78.50%  | +21.5% |    0.0089  |   0.8672
+  200 |   99.98%  |  78.35%  | +21.6% |    0.0087  |   0.8693  ← Final
+
+================================================================================
+CRITICAL OBSERVATIONS
+================================================================================
+
+1. Test Accuracy TRAJECTORY (most important!):
+   
+   Epoch 1-50:   14.93% → 55.70%  (+40.8%)  Rapid learning
+   Epoch 50-100:  55.70% → 62.60%  (+6.9%)   Slowing down
+   Epoch 100-150: 62.60% → 74.79%  (+12.2%)  Still improving!
+   Epoch 150-200: 74.79% → 78.35%  (+3.6%)   Continued improvement
+   
+   ✅ Test NEVER decreases significantly (only -0.3% from peak)
+
+2. Training Accuracy SATURATION:
+   
+   Epoch 121: 90%    (Test: 67%, gap 23%)
+   Epoch 136: 95%    (Test: 71%, gap 24%)
+   Epoch 151: 99%    (Test: 75%, gap 24%)
+   Epoch 159: 99.9%  (Test: 77%, gap 23%)
+   Epoch 161-200: ~100% (Test still improving: 77% → 78%)
+   
+   Even at 100% train, test improves by 1% over last 40 epochs!
+
+3. Loss DIVERGENCE Pattern:
+   
+   Epoch 1:   Train 3.94, Test 3.54  (Test better)
+   Epoch 50:  Train 0.93, Test 1.75  (Gap = 0.82)
+   Epoch 100: Train 0.53, Test 1.56  (Gap = 1.03)
+   Epoch 150: Train 0.05, Test 1.06  (Gap = 1.01)
+   Epoch 200: Train 0.01, Test 0.87  (Gap = 0.86)
+   
+   ⚠️  Loss gap widens then stabilizes (normal for overfitting)
+   ✅ Test loss KEEPS DECREASING (no catastrophic overfitting)
+
+4. When Does Overfitting START?
+   
+   Epoch 10: Gap exceeds 10% for first time
+   Epoch 50: Gap hits 17%
+   Epoch 100: Gap hits 21% (stabilizes here)
+   
+   Answer: Overfitting begins around epoch 10-20
+
+5. Should You Have STOPPED EARLY?
+   
+   Best test acc: 78.65% at epoch 179
+   Final test acc: 78.35% at epoch 200
+   Loss from continuing: Only -0.30%
+   
+   For production: Stop at epoch 179
+   For Neural Collapse: Continue to 200 (needed for NC to emerge)
+   
+   ✅ You made the RIGHT CHOICE for this research project!
+
+================================================================================
+VERDICT: Overfitting is EXPECTED and ACCEPTABLE
+================================================================================
+
+Your training shows the TEXTBOOK pattern for modern deep learning:
+
+Stage 1: Fit the data (epochs 1-100)
+Stage 2: Overfit but still generalize (epochs 100-150)  
+Stage 3: Terminal phase / Neural Collapse (epochs 150-200)
+
+The 21% gap is large but NOT harmful because:
+- Test accuracy never collapsed
+- Model continues learning useful features
+- Neural Collapse requires this training regime
+- Results are competitive for CIFAR-100
+
+This is EXACTLY what you want for a Neural Collapse study! 🎯

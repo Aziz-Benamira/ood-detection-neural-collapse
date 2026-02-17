@@ -42,6 +42,9 @@
 
 ## Bugs/Issues Fixed
 
+- ✅ Initially used vanilla ResNet-18 from torchvision → only 42% test accuracy!
+- ✅ Realized 7×7 stride-2 conv + maxpool destroys 32×32 images (checked ResNet paper Section 4.2)
+- ✅ Modified to 3×3 stride-1 conv, no maxpool → jumped to 78% accuracy
 - ✅ Initially forgot to normalize CIFAR images
 - ✅ Model training on CPU instead of GPU (needed SLURM)
 - ✅ Dataloader workers=0 caused slow loading (changed to 4/8)

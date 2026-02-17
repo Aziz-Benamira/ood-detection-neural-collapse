@@ -44,6 +44,7 @@ from src.utils.feature_extraction import extract_features_and_logits
 from src.ood.evaluation import evaluate_all_ood_methods
 from src.ood.scores import compute_class_statistics
 from src.neural_collapse.analysis import run_full_nc_analysis, measure_nc_across_layers
+from src.neural_collapse.metrics import measure_nc5_ood
 from src.utils.visualization import (
     plot_training_curves,
     plot_ood_score_distributions,
@@ -122,37 +123,30 @@ def main():
     setup_logging(log_dir)
     logger = logging.getLogger(__name__)
 
-    # ---- Reproducibility ----
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    # ---- Device ----
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info("Using device: %s", device)
     if device.type == 'cuda':
         logger.info("GPU: %s", torch.cuda.get_device_name(0))
 
-    # ---- Data ----
+    # Load data
     loaders = get_dataloaders(
         data_dir=args.data_dir,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
     )
 
-    # ---- Model ----
     model = build_resnet18_cifar(num_classes=NUM_CLASSES).to(device)
     total_params = sum(p.numel() for p in model.parameters())
     logger.info("ResNet-18: %s parameters", f"{total_params:,}")
 
-    # ==================================================================
-    # STEP 1: TRAINING
-    # ==================================================================
+    # Training
     if not args.skip_train:
-        logger.info("\n" + "=" * 60)
-        logger.info("STEP 1: TRAINING")
-        logger.info("=" * 60)
+        logger.info("\nSTEP 1: TRAINING")
 
         trainer = Trainer(
             model=model,
@@ -190,12 +184,8 @@ def main():
 
     model.eval()
 
-    # ==================================================================
-    # STEP 2: FEATURE EXTRACTION
-    # ==================================================================
-    logger.info("\n" + "=" * 60)
-    logger.info("STEP 2: FEATURE EXTRACTION")
-    logger.info("=" * 60)
+    # Feature extraction
+    logger.info("\nSTEP 2: FEATURE EXTRACTION")
 
     logger.info("Extracting features from CIFAR-100 train set...")
     train_features, train_logits, train_labels = extract_features_and_logits(
@@ -219,12 +209,8 @@ def main():
             model, loaders['dtd'], device,
         )
 
-    # ==================================================================
-    # STEP 3: OOD EVALUATION
-    # ==================================================================
-    logger.info("\n" + "=" * 60)
-    logger.info("STEP 3: OOD EVALUATION")
-    logger.info("=" * 60)
+    # OOD evaluation
+    logger.info("\nSTEP 3: OOD EVALUATION")
 
     svhn_results = evaluate_all_ood_methods(
         model, train_features, train_logits, train_labels,
@@ -238,11 +224,17 @@ def main():
     plot_final_ood_comparison(public_svhn, plot_dir, "SVHN")
 
     fitted = svhn_results['_fitted']
+
+    # centered + normalized class means for NECO visualization
+    global_mean = train_features.mean(axis=0)
+    cm = fitted['class_means'] - global_mean
+    neco_viz_means = cm / (np.linalg.norm(cm, axis=1, keepdims=True) + 1e-8)
+
     plot_neco_analysis(
         svhn_results['NECO']['id'], svhn_results['NECO']['ood'],
         svhn_results['NECO']['auroc'],
         id_features, ood_features_svhn,
-        fitted['neco_normalized_means'], fitted['neco_global_mean'],
+        neco_viz_means, global_mean,
         plot_dir, "SVHN",
     )
 
@@ -257,21 +249,16 @@ def main():
         plot_ood_score_distributions(public_dtd, plot_dir, "DTD")
         plot_final_ood_comparison(public_dtd, plot_dir, "DTD")
 
-        fitted_dtd = dtd_results['_fitted']
         plot_neco_analysis(
             dtd_results['NECO']['id'], dtd_results['NECO']['ood'],
             dtd_results['NECO']['auroc'],
             id_features, ood_features_dtd,
-            fitted_dtd['neco_normalized_means'], fitted_dtd['neco_global_mean'],
+            neco_viz_means, global_mean,
             plot_dir, "DTD",
         )
 
-    # ==================================================================
-    # STEP 4: NEURAL COLLAPSE ANALYSIS
-    # ==================================================================
-    logger.info("\n" + "=" * 60)
-    logger.info("STEP 4: NEURAL COLLAPSE ANALYSIS")
-    logger.info("=" * 60)
+    # Neural collapse analysis
+    logger.info("\nSTEP 4: NEURAL COLLAPSE ANALYSIS")
 
     class_means = fitted['class_means']
 
@@ -280,6 +267,14 @@ def main():
         id_features, id_logits, id_labels,
         class_means, num_classes=NUM_CLASSES,
     )
+
+    # NC5 OOD: orthogonality of OOD centroid to class means
+    nc5_svhn = measure_nc5_ood(train_features, train_labels, ood_features_svhn, NUM_CLASSES)
+    logger.info("NC5 OOD (SVHN): %.6f", nc5_svhn)
+    nc5_dtd = None
+    if ood_features_dtd is not None:
+        nc5_dtd = measure_nc5_ood(train_features, train_labels, ood_features_dtd, NUM_CLASSES)
+        logger.info("NC5 OOD (DTD): %.6f", nc5_dtd)
 
     plot_neural_collapse(
         per_class_var=nc_results['per_class_var'],
@@ -295,7 +290,7 @@ def main():
         output_dir=plot_dir,
     )
 
-    # ---- Bonus: NC across layers ----
+    # Bonus: NC across layers
     if not args.skip_across_layers:
         nc1_per_layer, pcv_per_layer = measure_nc_across_layers(
             model, loaders['train'], device,
@@ -303,9 +298,7 @@ def main():
         )
         plot_nc_across_layers(nc1_per_layer, pcv_per_layer, plot_dir)
 
-    # ==================================================================
-    # SAVE SUMMARY
-    # ==================================================================
+    # Save summary
     svhn_aurocs = {k: v['auroc'] for k, v in svhn_results.items() if not k.startswith('_')}
     summary = {
         'ood_auroc_svhn': svhn_aurocs,
@@ -316,12 +309,15 @@ def main():
             'NC3_mean_cos': nc_results['nc3_mean_cos'],
             'NC4_agreement': nc_results['nc4_agreement'],
             'NC5_test_agreement': nc_results['nc5_test_agreement'],
+            'NC5_ood_svhn': nc5_svhn,
         },
     }
     if ood_features_dtd is not None:
         summary['ood_auroc_dtd'] = {
             k: v['auroc'] for k, v in dtd_results.items() if not k.startswith('_')
         }
+        if nc5_dtd is not None:
+            summary['neural_collapse']['NC5_ood_dtd'] = nc5_dtd
 
     summary_path = os.path.join(results_dir, "summary.json")
     with open(summary_path, 'w') as f:

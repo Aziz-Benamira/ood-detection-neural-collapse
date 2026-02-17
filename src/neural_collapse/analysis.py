@@ -65,20 +65,17 @@ def run_full_nc_analysis(
     """
     results = {}
 
-    # ---- NC1 ----
-    logger.info("=" * 60)
+    # NC1
     logger.info("NEURAL COLLAPSE MEASUREMENTS")
-    logger.info("=" * 60)
 
-    logger.info("\n--- NC1: Within-class Variability Collapse ---")
+    logger.info("NC1: Within-class Variability Collapse")
     nc1_metric, per_class_var = measure_nc1(train_features, train_labels, num_classes)
     logger.info("  NC1 metric (tr(Σ_W @ Σ_B^{-1}) / C): %.6f", nc1_metric)
-    logger.info("  (Should approach 0 if NC1 holds)")
     results['nc1_metric'] = nc1_metric
     results['per_class_var'] = per_class_var
 
-    # ---- NC2 ----
-    logger.info("\n--- NC2: Convergence to Simplex ETF ---")
+    # NC2
+    logger.info("NC2: Convergence to Simplex ETF")
     norm_std, cos_sim_matrix, cos_mean_offdiag = measure_nc2(
         train_features, train_labels, num_classes,
     )
@@ -86,14 +83,14 @@ def run_full_nc_analysis(
     results['nc2_cos_sim_matrix'] = cos_sim_matrix
     results['nc2_cos_mean_offdiag'] = cos_mean_offdiag
 
-    # ---- NC3 ----
-    logger.info("\n--- NC3: Self-Duality (Classifier-Feature Alignment) ---")
+    # NC3
+    logger.info("NC3: Self-Duality (Classifier-Feature Alignment)")
     nc3_cos_sims, nc3_mean_cos = measure_nc3(model, train_features, train_labels, num_classes)
     results['nc3_cos_sims'] = nc3_cos_sims
     results['nc3_mean_cos'] = nc3_mean_cos
 
-    # ---- NC4 ----
-    logger.info("\n--- NC4: Simplification to NCC ---")
+    # NC4
+    logger.info("NC4: Simplification to NCC")
     nc4_agreement, nc4_ncc_acc, nc4_model_acc = measure_nc4(
         model, train_features, train_labels, num_classes,
     )
@@ -101,9 +98,9 @@ def run_full_nc_analysis(
     results['nc4_ncc_acc'] = nc4_ncc_acc
     results['nc4_model_acc'] = nc4_model_acc
 
-    # ---- NC5: NCC on test data ----
+    # NC5: NCC on test data
     # We use the class means from TRAINING data, but evaluate on TEST data.
-    logger.info("\n--- NC5: Nearest Class Center on Test Data ---")
+    logger.info("NC5: Nearest Class Center on Test Data")
     test_h_sq = np.sum(id_features ** 2, axis=1, keepdims=True)
     test_mu_sq = np.sum(class_means ** 2, axis=1)
     test_cross = id_features @ class_means.T

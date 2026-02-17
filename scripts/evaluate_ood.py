@@ -170,14 +170,18 @@ def main():
 
     # NECO analysis plot
     fitted = svhn_results['_fitted']
+    global_mean = train_features.mean(axis=0)
+    cm = fitted['class_means'] - global_mean
+    neco_viz_means = cm / (np.linalg.norm(cm, axis=1, keepdims=True) + 1e-8)
+
     plot_neco_analysis(
         id_neco=svhn_results['NECO']['id'],
         ood_neco=svhn_results['NECO']['ood'],
         auroc_neco=svhn_results['NECO']['auroc'],
         id_features=id_features,
         ood_features=ood_features_svhn,
-        neco_normalized_means=fitted['neco_normalized_means'],
-        neco_global_mean=fitted['neco_global_mean'],
+        neco_normalized_means=neco_viz_means,
+        neco_global_mean=global_mean,
         output_dir=plot_dir,
         ood_name="SVHN",
     )
@@ -216,15 +220,14 @@ def main():
             plot_dir, ood_name="DTD",
         )
 
-        fitted_dtd = dtd_results['_fitted']
         plot_neco_analysis(
             id_neco=dtd_results['NECO']['id'],
             ood_neco=dtd_results['NECO']['ood'],
             auroc_neco=dtd_results['NECO']['auroc'],
             id_features=id_features,
             ood_features=ood_features_dtd,
-            neco_normalized_means=fitted_dtd['neco_normalized_means'],
-            neco_global_mean=fitted_dtd['neco_global_mean'],
+            neco_normalized_means=neco_viz_means,
+            neco_global_mean=global_mean,
             output_dir=plot_dir,
             ood_name="DTD",
         )

@@ -5,6 +5,26 @@ Author: Aziz BEN AMIRA — February 2026
 
 ---
 
+## 🚀 New to This Project? Start Here
+
+**Complete setup guide for GPU clusters:** see [SETUP.md](SETUP.md)
+
+**Quick start:**
+```bash
+# 1. Clone and setup
+git clone https://github.com/your-username/ood_detection.git
+cd ood_detection/project
+pip install -r requirements.txt
+
+# 2. Run full pipeline (200 epochs, ~3h on GPU)
+python main.py --epochs 200
+
+# 3. Check results
+cat outputs/results/summary.json
+```
+
+---
+
 ## Overview
 
 This project implements:

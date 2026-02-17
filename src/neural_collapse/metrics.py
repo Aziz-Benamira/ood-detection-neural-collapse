@@ -43,17 +43,9 @@ from scipy import linalg
 logger = logging.getLogger(__name__)
 
 
-# ======================================================================
 # NC1: Within-class Variability Collapse
-# ======================================================================
-#
 # Σ_W = (1/N) Σ_c Σ_{i:y_i=c} (h_i - μ_c)(h_i - μ_c)^T → 0
-#
-# ELI5: imagine each class as a group of students in a classroom.  At
-# the end of training, all students in the same group end up sitting
-# in the exact same seat (their group's "preferred spot").  There's no
-# more variation within a group.
-# ======================================================================
+
 
 def measure_nc1(
     features: np.ndarray,
@@ -120,18 +112,8 @@ def measure_nc1(
     return nc1_metric, per_class_var
 
 
-# ======================================================================
 # NC2: Convergence to Simplex ETF
-# ======================================================================
-#
-# A Simplex ETF is the configuration that maximizes the minimum angle
-# between any pair of vectors — it's the "most spread out" arrangement
-# possible.
-#
-# ELI5: the class centers arrange themselves like the vertices of a
-# regular polyhedron (a simplex) in feature space.  For 3 classes in
-# 2D, this would be an equilateral triangle.
-# ======================================================================
+
 
 def measure_nc2(
     features: np.ndarray,
@@ -195,16 +177,9 @@ def measure_nc2(
     return norm_std, cos_sim_matrix, cos_mean_off_diag
 
 
-# ======================================================================
 # NC3: Self-Duality (Classifier-Feature Alignment)
-# ======================================================================
-#
 # w_c / ||w_c||  ≈  (μ_c - μ_G) / ||μ_c - μ_G||
-#
-# ELI5: Each weight vector "points towards" its own class in feature
-# space.  The classifier doesn't need to learn some complex decision
-# boundary — it just points at each cluster.
-# ======================================================================
+
 
 def measure_nc3(
     model,
@@ -259,17 +234,9 @@ def measure_nc3(
     return cos_sims, mean_cos
 
 
-# ======================================================================
 # NC4: Simplification to Nearest Class Center (NCC)
-# ======================================================================
-#
 # ŷ = argmax_c w_c^T h + b_c  ≈  argmin_c ||h - μ_c||²
-#
-# ELI5: The complex neural network effectively reduces to a very simple
-# rule: "classify each point to whichever class center it's closest to."
-# All the complexity of backprop, nonlinearities, etc., just to arrive
-# at this elegant simplicity.
-# ======================================================================
+
 
 def measure_nc4(
     model,
@@ -332,3 +299,32 @@ def measure_nc4(
     logger.info("  Agreement (model vs NCC): %.2f%%", agreement * 100)
 
     return agreement, ncc_accuracy, model_accuracy
+
+
+def measure_nc5_ood(
+    train_features: np.ndarray,
+    train_labels: np.ndarray,
+    ood_features: np.ndarray,
+    num_classes: int = 100,
+) -> float:
+    """
+    NC5 OOD: mean |cos(class_mean, ood_centroid)| across classes.
+    Should be close to 0 if OOD features are orthogonal to class structure.
+    """
+    D = train_features.shape[1]
+    class_means = np.zeros((num_classes, D))
+    for c in range(num_classes):
+        class_means[c] = train_features[train_labels == c].mean(axis=0)
+
+    ood_mean = ood_features.mean(axis=0)
+    ood_norm = np.linalg.norm(ood_mean)
+
+    cos_abs = np.zeros(num_classes)
+    for c in range(num_classes):
+        c_norm = np.linalg.norm(class_means[c])
+        cos_abs[c] = np.abs(np.dot(class_means[c], ood_mean) / (c_norm * ood_norm + 1e-10))
+
+    nc5 = cos_abs.mean()
+    logger.info("  NC5 OOD: mean |cos| = %.6f (should be ~0 for orthogonality)", nc5)
+
+    return nc5

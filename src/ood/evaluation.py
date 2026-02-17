@@ -93,26 +93,26 @@ def evaluate_all_ood_methods(
     """
     results: Dict[str, dict] = {}
 
-    # === MSP ===
+    # MSP
     id_msp = score_msp(id_logits)
     ood_msp = score_msp(ood_logits)
     results['MSP'] = {'id': id_msp, 'ood': ood_msp, 'auroc': compute_auroc(id_msp, ood_msp)}
     logger.info("MSP          AUROC: %.4f", results['MSP']['auroc'])
 
-    # === Max Logit ===
+    # Max Logit
     id_ml = score_max_logit(id_logits)
     ood_ml = score_max_logit(ood_logits)
     results['Max Logit'] = {'id': id_ml, 'ood': ood_ml, 'auroc': compute_auroc(id_ml, ood_ml)}
     logger.info("Max Logit    AUROC: %.4f", results['Max Logit']['auroc'])
 
-    # === Energy ===
+    # Energy
     id_energy = score_energy(id_logits, temperature)
     ood_energy = score_energy(ood_logits, temperature)
     results['Energy'] = {'id': id_energy, 'ood': ood_energy,
                          'auroc': compute_auroc(id_energy, ood_energy)}
     logger.info("Energy       AUROC: %.4f", results['Energy']['auroc'])
 
-    # === Mahalanobis ===
+    # Mahalanobis
     logger.info("Computing class statistics for Mahalanobis...")
     class_means, shared_cov, precision = compute_class_statistics(
         train_features, train_labels, num_classes,
@@ -123,24 +123,24 @@ def evaluate_all_ood_methods(
                               'auroc': compute_auroc(id_maha, ood_maha)}
     logger.info("Mahalanobis  AUROC: %.4f", results['Mahalanobis']['auroc'])
 
-    # === ViM ===
+    # ViM
     logger.info("Computing ViM parameters...")
-    null_space_proj, vim_alpha, vim_feature_mean = compute_vim_parameters(
+    vim_NS, vim_alpha, vim_u = compute_vim_parameters(
         model, train_features, train_logits, num_classes,
     )
-    id_vim = score_vim(id_features, id_logits, null_space_proj, vim_alpha, vim_feature_mean)
-    ood_vim = score_vim(ood_features, ood_logits, null_space_proj, vim_alpha, vim_feature_mean)
+    id_vim = score_vim(id_features, id_logits, vim_NS, vim_alpha, vim_u)
+    ood_vim = score_vim(ood_features, ood_logits, vim_NS, vim_alpha, vim_u)
     results['ViM'] = {'id': id_vim, 'ood': ood_vim,
                       'auroc': compute_auroc(id_vim, ood_vim)}
     logger.info("ViM          AUROC: %.4f", results['ViM']['auroc'])
 
-    # === NECO ===
+    # NECO
     logger.info("Computing NECO parameters...")
-    neco_normalized_means, neco_global_mean = compute_neco_parameters(
-        train_features, train_labels, num_classes,
+    neco_scaler, neco_pca, neco_dim = compute_neco_parameters(
+        train_features, neco_dim=num_classes,
     )
-    id_neco = score_neco(id_features, neco_normalized_means, neco_global_mean)
-    ood_neco = score_neco(ood_features, neco_normalized_means, neco_global_mean)
+    id_neco = score_neco(id_features, neco_scaler, neco_pca, neco_dim)
+    ood_neco = score_neco(ood_features, neco_scaler, neco_pca, neco_dim)
     results['NECO'] = {'id': id_neco, 'ood': ood_neco,
                        'auroc': compute_auroc(id_neco, ood_neco)}
     logger.info("NECO         AUROC: %.4f", results['NECO']['auroc'])
@@ -149,11 +149,12 @@ def evaluate_all_ood_methods(
     results['_fitted'] = {
         'class_means': class_means,
         'precision': precision,
-        'null_space_proj': null_space_proj,
+        'vim_NS': vim_NS,
         'vim_alpha': vim_alpha,
-        'vim_feature_mean': vim_feature_mean,
-        'neco_normalized_means': neco_normalized_means,
-        'neco_global_mean': neco_global_mean,
+        'vim_u': vim_u,
+        'neco_scaler': neco_scaler,
+        'neco_pca': neco_pca,
+        'neco_dim': neco_dim,
     }
 
     return results

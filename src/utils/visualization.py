@@ -31,9 +31,8 @@ def _save(fig, output_dir: str, filename: str, dpi: int = 150):
     logger.info("Plot saved → %s", path)
 
 
-# ======================================================================
 # Training curves
-# ======================================================================
+
 
 def plot_training_curves(history: dict, output_dir: str):
     """
@@ -54,9 +53,9 @@ def plot_training_curves(history: dict, output_dir: str):
     # Loss curves
     axes[0].plot(history['train_loss'], label='Train Loss', alpha=0.8)
     axes[0].plot(history['test_loss'], label='Test Loss', alpha=0.8)
-    axes[0].set_xlabel('Epoch')
-    axes[0].set_ylabel('Cross-Entropy Loss')
-    axes[0].set_title('Training & Test Loss')
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('Loss')
+    ax.set_title('Training & Test Loss')
     axes[0].legend()
     axes[0].grid(True, alpha=0.3)
 
@@ -73,7 +72,7 @@ def plot_training_curves(history: dict, output_dir: str):
     axes[2].plot(history['lr'], color='green', alpha=0.8)
     axes[2].set_xlabel('Epoch')
     axes[2].set_ylabel('Learning Rate')
-    axes[2].set_title('Cosine Annealing LR Schedule')
+    axes[2].set_title('LR Schedule')
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -83,9 +82,8 @@ def plot_training_curves(history: dict, output_dir: str):
     logger.info("Final test acc:  %.2f%%", history['test_acc'][-1] * 100)
 
 
-# ======================================================================
 # OOD score distributions
-# ======================================================================
+
 
 def plot_ood_score_distributions(
     ood_results: Dict[str, dict],
@@ -94,10 +92,6 @@ def plot_ood_score_distributions(
 ):
     """
     Plot histograms of OOD scores for each method (ID vs OOD).
-
-    This is a KEY DELIVERABLE: showing how well each method separates
-    ID from OOD.  Ideally, the ID and OOD histograms should have minimal
-    overlap.
 
     Parameters
     ----------
@@ -148,9 +142,8 @@ def plot_ood_score_distributions(
     _save(fig, output_dir, f'ood_scores_{ood_name.lower()}.png')
 
 
-# ======================================================================
 # Final OOD bar-chart comparison
-# ======================================================================
+
 
 def plot_final_ood_comparison(
     ood_results: Dict[str, dict],
@@ -195,9 +188,8 @@ def plot_final_ood_comparison(
     _save(fig, output_dir, f'final_ood_comparison_{ood_name.lower()}.png')
 
 
-# ======================================================================
 # Neural Collapse (NC1-NC4) visualizations
-# ======================================================================
+
 
 def plot_neural_collapse(
     per_class_var: np.ndarray,
@@ -231,28 +223,27 @@ def plot_neural_collapse(
     """
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
 
-    # --- NC1: Within-class variance per class ---
+    # NC1: Within-class variance per class
     ax = axes[0, 0]
     ax.bar(range(num_classes), per_class_var, alpha=0.7, width=1.0)
     ax.set_xlabel('Class index')
     ax.set_ylabel('Within-class variance (trace)')
-    ax.set_title('NC1: Within-class Variance per Class\n(should be uniformly small)', fontsize=11)
+    ax.set_title('NC1: Within-class Variance per Class', fontsize=11)
     ax.axhline(y=per_class_var.mean(), color='red', linestyle='--',
                label=f'Mean: {per_class_var.mean():.4f}')
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # --- NC2: Cosine similarity matrix ---
+    # NC2: Cosine similarity matrix
     ax = axes[0, 1]
     subset = cos_sim_matrix[:20, :20]
     im = ax.imshow(subset, cmap='RdBu_r', vmin=-0.15, vmax=0.15)
-    ax.set_title('NC2: Pairwise Cosine Similarity\n'
-                 '(first 20 classes, off-diag → -1/(C-1))', fontsize=11)
+    ax.set_title('NC2: Pairwise Cosine Similarity (first 20 classes)', fontsize=11)
     ax.set_xlabel('Class')
     ax.set_ylabel('Class')
     plt.colorbar(im, ax=ax, shrink=0.8)
 
-    # --- NC2: Distribution of off-diagonal cosine similarities ---
+    # NC2: Distribution of off-diagonal cosine similarities
     ax = axes[0, 2]
     offdiag_mask = ~np.eye(num_classes, dtype=bool)
     offdiag_cos = cos_sim_matrix[offdiag_mask]
@@ -264,24 +255,22 @@ def plot_neural_collapse(
                label=f'Actual mean: {offdiag_cos.mean():.4f}')
     ax.set_xlabel('Cosine Similarity')
     ax.set_ylabel('Density')
-    ax.set_title('NC2: Off-diagonal Cosine Similarities\n'
-                 '(should concentrate at -1/(C-1))', fontsize=11)
+    ax.set_title('NC2: Off-diagonal Cosine Similarities', fontsize=11)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
 
-    # --- NC3: Cosine similarity between w_c and mu_c ---
+    # NC3: Cosine similarity between w_c and mu_c
     ax = axes[1, 0]
     ax.bar(range(num_classes), nc3_cos_sims, alpha=0.7, width=1.0, color='green')
     ax.set_xlabel('Class index')
     ax.set_ylabel('Cosine Similarity')
-    ax.set_title(f'NC3: cos(w_c, mu_c - mu_G) per class\n'
-                 f'(mean = {nc3_mean_cos:.4f}, should → 1)', fontsize=11)
+    ax.set_title(f'NC3: cos(w_c, mu_c - mu_G) per class (mean = {nc3_mean_cos:.4f})', fontsize=11)
     ax.axhline(y=1.0, color='red', linestyle='--', label='Perfect alignment')
     ax.set_ylim([min(0, nc3_cos_sims.min() - 0.1), 1.05])
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # --- NC2: Class mean norms (equinorm check) ---
+    # NC2: Class mean norms (equinorm check)
     ax = axes[1, 1]
     global_mean_train = train_features.mean(axis=0)
     class_means_check = np.zeros((num_classes, train_features.shape[1]))
@@ -297,12 +286,11 @@ def plot_neural_collapse(
                      f'CV: {mean_norms.std() / mean_norms.mean():.4f}')
     ax.set_xlabel('Class index')
     ax.set_ylabel('||mu_c - mu_G||')
-    ax.set_title('NC2 (equinorm): Norms of centered class means\n'
-                 '(should be approximately equal)', fontsize=11)
+    ax.set_title('NC2 (equinorm): Norms of centered class means', fontsize=11)
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # --- NC4: Agreement between model and NCC ---
+    # NC4: Agreement between model and NCC
     ax = axes[1, 2]
     categories = ['Model Acc\n(train)', 'NCC Acc\n(train)', 'Agreement\n(Model vs NCC)']
     values = [nc4_model_acc * 100, nc4_ncc_acc * 100, nc4_agreement * 100]
@@ -322,9 +310,8 @@ def plot_neural_collapse(
     _save(fig, output_dir, 'neural_collapse_nc1_nc4.png')
 
 
-# ======================================================================
-# NECO analysis
-# ======================================================================
+# NC5 analysis
+
 
 def plot_neco_analysis(
     id_neco: np.ndarray,
@@ -406,9 +393,8 @@ def plot_neco_analysis(
     _save(fig, output_dir, f'neco_analysis_{ood_name.lower()}.png')
 
 
-# ======================================================================
-# NC across layers (Bonus)
-# ======================================================================
+# NC across layers (bonus)
+
 
 def plot_nc_across_layers(
     nc1_per_layer: Dict[str, float],
@@ -417,11 +403,6 @@ def plot_nc_across_layers(
 ):
     """
     Plot NC1 metric vs. layer depth (Bonus analysis).
-
-    Hypothesis: NC should be strongest in the last layers (closest to the
-    loss) and weaker in earlier layers.  This is because Neural Collapse
-    is driven by the cross-entropy loss optimizing the features and
-    classifier jointly.
 
     Parameters
     ----------
@@ -457,7 +438,3 @@ def plot_nc_across_layers(
 
     plt.tight_layout()
     _save(fig, output_dir, 'nc_across_layers.png')
-
-    logger.info("As expected, Neural Collapse (NC1) becomes stronger in later layers.")
-    logger.info("This makes sense: the final layers are most directly optimized by the "
-                "cross-entropy loss, which drives the collapse.")
