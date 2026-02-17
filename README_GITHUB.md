@@ -2,12 +2,9 @@
 
 Research project implementing Out-of-Distribution (OOD) detection methods and Neural Collapse analysis.
 
-**Course**: Theory of Deep Learning (MVA + ENSTA)  
-**Author**: Aziz BEN AMIRA
-
 ---
 
-## 🎯 Project Overview
+## Project Overview
 
 This project trains a ResNet-18 classifier on CIFAR-100 and studies:
 1. **6 OOD Detection Methods**: MSP, Max Logit, Energy, Mahalanobis, ViM, NECO
@@ -16,7 +13,7 @@ This project trains a ResNet-18 classifier on CIFAR-100 and studies:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 project/
@@ -50,7 +47,7 @@ project/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -88,7 +85,7 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 
 ---
 
-## 📊 Results Summary
+## Results Summary
 
 ### Training Performance
 - **Test Accuracy**: 78.65% (CIFAR-100, 100 classes)
@@ -104,21 +101,21 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 | Max Logit | 0.869 | 0.784 |
 | MSP | 0.846 | 0.779 |
 | Mahalanobis | 0.688 | 0.781 |
-| ViM ⚠️ | 0.225 | 0.451 |
+| ViM | 0.225 | 0.451 |
 
 ### Neural Collapse Metrics
 
 | Metric | Value | Interpretation |
 |--------|-------|----------------|
 | NC1 | 1,126,273 | Partial collapse (expected at 78% acc) |
-| NC2 (angle) | -0.0101 | ✅ Perfect simplex! |
-| NC3 (alignment) | 0.977 | ✅ Strong weight-mean alignment |
-| NC4 (agreement) | 100% (train) | ✅ NCC = Softmax |
-| NC5 (test) | 96.89% | ✅ Generalizes to test data |
+| NC2 (angle) | -0.0101 |  Perfect simplex! |
+| NC3 (alignment) | 0.977 | Strong weight-mean alignment |
+| NC4 (agreement) | 100% (train) |  NCC = Softmax |
+| NC5 (test) | 96.89% | Generalizes to test data |
 
 ---
 
-## 🔬 Key Insights
+## Key Insights
 
 1. **Neural Collapse is real**: Despite only 78% accuracy, NC2-NC5 show strong geometric structure
 2. **Simple methods work**: Energy score (0.876 AUROC) outperforms complex ViM
@@ -127,7 +124,7 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 
 ---
 
-## 📚 References
+## References
 
 - **Neural Collapse**: Papyan et al. (2020) - "Prevalence of Neural Collapse during the terminal phase of deep learning training"
 - **NECO**: Inspired by Neural Collapse geometry for OOD detection
@@ -137,7 +134,7 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 
 ---
 
-## 📝 Files to Review
+## Files to Review
 
 - **`analysis.md`**: Personal observations and deep dive into results
 - **`STUDY_GUIDE.md`**: Defense preparation with key concepts
@@ -146,7 +143,7 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 
 ---
 
-## ⚠️ Known Issues
+## Known Issues
 
 1. **ViM performance**: AUROC of 0.225 (needs hyperparameter tuning)
 2. **NC1 not collapsed**: Expected at 78% accuracy; would need >95% for full collapse
@@ -154,7 +151,7 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 
 ---
 
-## 🤝 Collaboration
+##  Collaboration
 
 **Share with mate**: This repo contains full working code + results. To reproduce:
 1. Download CIFAR-100 (automatic via torchvision)
@@ -162,25 +159,16 @@ python scripts/analyze_nc.py --checkpoint ./outputs/checkpoints/best_model.pth
 3. Run `main.py` or SLURM scripts
 
 **What's included**:
-- ✅ Complete working pipeline
-- ✅ All results (plots, metrics, training logs)
-- ✅ Personal analysis and experiments
-- ✅ Study materials for defense
+-  Complete working pipeline
+-  All results (plots, metrics, training logs)
+-  Personal analysis and experiments
+-  Study materials for defense
 
 **What's excluded** (too large):
-- ❌ Intermediate checkpoints (20 × 129MB each)
-- ❌ Raw datasets (downloaded on-demand)
+-  Intermediate checkpoints (20 × 129MB each)
+-  Raw datasets (downloaded on-demand)
 
----
 
-## 📧 Contact
-
-**Author**: Aziz BEN AMIRA  
-**Course**: Theory of Deep Learning (MVA + ENSTA)  
-**Date**: February 2026
-
----
-
-## 📜 License
+##  License
 
 For educational purposes (MVA + ENSTA course project).

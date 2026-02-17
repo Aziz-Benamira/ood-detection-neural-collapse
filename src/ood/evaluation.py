@@ -1,11 +1,9 @@
 """
 OOD detection evaluation utilities.
 
-Provides AUROC computation and a convenience function that runs all 6
-OOD scoring methods in one call.
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
+Provides:
+- AUROC computation for OOD detection performance measurement
+- Evaluation of 6 OOD scoring methods (MSP, Max Logit, Energy, Mahalanobis, ViM, NECO)
 """
 
 import logging
@@ -49,9 +47,10 @@ def compute_auroc(id_scores: np.ndarray, ood_scores: np.ndarray) -> float:
     auroc : float
         Area Under the ROC Curve.
     """
+    # Label ID as 1 (positive), OOD as 0 (negative class)
     labels = np.concatenate([
-        np.ones(len(id_scores)),    # ID = positive class
-        np.zeros(len(ood_scores)),  # OOD = negative class
+        np.ones(len(id_scores)),
+        np.zeros(len(ood_scores)),
     ])
     scores = np.concatenate([id_scores, ood_scores])
     return roc_auc_score(labels, scores)
@@ -70,7 +69,9 @@ def evaluate_all_ood_methods(
     temperature: float = 1.0,
 ) -> Dict[str, dict]:
     """
-    Run all 6 OOD scoring methods and return results.
+    Evaluate all 6 OOD scoring methods and compute AUROC for each.
+
+    Methods evaluated: MSP, Max Logit, Energy, Mahalanobis, ViM, NECO.
 
     Parameters
     ----------
@@ -93,26 +94,26 @@ def evaluate_all_ood_methods(
     """
     results: Dict[str, dict] = {}
 
-    # MSP
+    # Method 1: Maximum Softmax Probability (MSP)
     id_msp = score_msp(id_logits)
     ood_msp = score_msp(ood_logits)
     results['MSP'] = {'id': id_msp, 'ood': ood_msp, 'auroc': compute_auroc(id_msp, ood_msp)}
     logger.info("MSP          AUROC: %.4f", results['MSP']['auroc'])
 
-    # Max Logit
+    # Method 2: Maximum Logit
     id_ml = score_max_logit(id_logits)
     ood_ml = score_max_logit(ood_logits)
     results['Max Logit'] = {'id': id_ml, 'ood': ood_ml, 'auroc': compute_auroc(id_ml, ood_ml)}
     logger.info("Max Logit    AUROC: %.4f", results['Max Logit']['auroc'])
 
-    # Energy
+    # Method 3: Energy Score
     id_energy = score_energy(id_logits, temperature)
     ood_energy = score_energy(ood_logits, temperature)
     results['Energy'] = {'id': id_energy, 'ood': ood_energy,
                          'auroc': compute_auroc(id_energy, ood_energy)}
     logger.info("Energy       AUROC: %.4f", results['Energy']['auroc'])
 
-    # Mahalanobis
+    # Method 4: Mahalanobis Distance
     logger.info("Computing class statistics for Mahalanobis...")
     class_means, shared_cov, precision = compute_class_statistics(
         train_features, train_labels, num_classes,
@@ -123,7 +124,7 @@ def evaluate_all_ood_methods(
                               'auroc': compute_auroc(id_maha, ood_maha)}
     logger.info("Mahalanobis  AUROC: %.4f", results['Mahalanobis']['auroc'])
 
-    # ViM
+    # Method 5: Variation in Magnitude (ViM)
     logger.info("Computing ViM parameters...")
     vim_NS, vim_alpha, vim_u = compute_vim_parameters(
         model, train_features, train_logits, num_classes,
@@ -134,7 +135,7 @@ def evaluate_all_ood_methods(
                       'auroc': compute_auroc(id_vim, ood_vim)}
     logger.info("ViM          AUROC: %.4f", results['ViM']['auroc'])
 
-    # NECO
+    # Method 6: Neural Collapse Eye Classifier (NECO)
     logger.info("Computing NECO parameters...")
     neco_scaler, neco_pca, neco_dim = compute_neco_parameters(
         train_features, neco_dim=num_classes,

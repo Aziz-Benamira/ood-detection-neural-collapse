@@ -1,7 +1,3 @@
-"""
-configuration for the OOD Detection & Neural Collapse project.
-
-"""
 
 import os
 
@@ -50,6 +46,5 @@ ENERGY_TEMPERATURE = 1.0  # temperature for the energy score
 
 
 def ensure_dirs():
-    """ create all output directories if they don't exist."""
     for d in [OUTPUT_DIR, CHECKPOINT_DIR, LOG_DIR, PLOT_DIR, RESULTS_DIR]:
         os.makedirs(d, exist_ok=True)

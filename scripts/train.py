@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 """
 Train ResNet-18 on CIFAR-100.
-
-Usage
------
-    python scripts/train.py --epochs 200 --data-dir ./data --output-dir ./outputs
-
-Resume from checkpoint:
-    python scripts/train.py --resume outputs/checkpoints/checkpoint_epoch100.pth
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
+Usage : python scripts/train.py --epochs 200 --data-dir ./data --output-dir ./outputs
+Resume from checkpoint: python scripts/train.py --resume outputs/checkpoints/checkpoint_epoch100.pth
 """
 
 import argparse

@@ -1,17 +1,10 @@
 """
 Feature extraction utilities.
 
-Before we dive into OOD scoring, we need a way to extract **penultimate layer
-features** (the 512-dimensional vector right before the final linear classifier).
-Many OOD methods (Mahalanobis, ViM, NECO) work in this feature space rather than
-on raw logits.
-
+Before we dive into OOD scoring, we need a way to extract **penultimate layer features.
+Many OOD methods (Mahalanobis, ViM, NECO) work in this feature space rather thanon raw logits.
 We use a **forward hook** — a PyTorch mechanism that lets us capture intermediate
-activations without modifying the model's ``forward()`` method.  Think of it like
-a wiretap on a specific layer.
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
+activations without modifying the model's forward() method. 
 """
 
 import logging
@@ -37,28 +30,9 @@ def extract_features_and_logits(
     Extract penultimate layer features AND logits for every sample in the loader.
 
     How it works
-    ------------
     1. We register a hook on the avgpool layer (right before the FC layer).
     2. During forward pass, the hook captures the output of avgpool.
     3. We also get the final logits from the model's output.
-
-    Parameters
-    ----------
-    model : nn.Module
-        Trained ResNet-18.
-    loader : DataLoader
-        Data loader to extract features from.
-    device : torch.device
-        CPU or CUDA.
-
-    Returns
-    -------
-    features : np.ndarray, shape (N, 512)
-        Penultimate layer features for all N samples.
-    logits : np.ndarray, shape (N, C)
-        Raw logits (pre-softmax) for all N samples.
-    labels : np.ndarray, shape (N,)
-        Ground truth labels.
     """
     all_features = []
     all_logits = []
@@ -104,25 +78,7 @@ def extract_multi_layer_features(
     Extract features from multiple layers of ResNet-18.
 
     We hook into the output of each of the 4 residual blocks (layer1-layer4)
-    plus the final avgpool layer.  This is used for the bonus analysis of
-    Neural Collapse across layers.
-
-    Parameters
-    ----------
-    model : nn.Module
-        Trained ResNet-18.
-    loader : DataLoader
-        Data loader.
-    device : torch.device
-        CPU or CUDA.
-
-    Returns
-    -------
-    layer_features : dict
-        Keys: layer names ('layer1', 'layer2', 'layer3', 'layer4'),
-        Values: np.ndarray of globally-average-pooled features.
-    labels : np.ndarray
-        Ground truth labels.
+    plus the final avgpool layer.  This is used for the bonus analysis of Neural Collapse across layers.
     """
     # Layers to extract features from
     layers = {

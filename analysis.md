@@ -1,10 +1,10 @@
 # Personal Analysis & Insights
 
-**Author's Notes**: This document captures my understanding and exploration during the project.
+This document captures our understanding and exploration during the project.
 
 ---
 
-## 🔍 Results Analysis
+## Results Analysis
 
 ### Training Performance
 
@@ -22,39 +22,38 @@ This is reasonable for CIFAR-100:
 **SVHN (Street Numbers):**
 - Energy score wins (0.876 AUROC)
 - Simple methods work well
-- **My hypothesis**: SVHN is visually very different from CIFAR-100 (text vs objects), so logit-based methods easily separate them
+- **Our hypothesis**: SVHN is visually very different from CIFAR-100 (text vs objects), so logit-based methods easily separate them
 
 **DTD (Textures):**
 - NECO wins (0.813 AUROC)
 - Feature-based methods do better
-- **My hypothesis**: Textures look more "object-like" than street numbers, so we need geometric reasoning (Neural Collapse) to detect them
+- **Our hypothesis**: Textures look more "object-like" than street numbers, so we need geometric reasoning (Neural Collapse) to detect them
 
-### The ViM Problem 🤔
+### The ViM Problem 
 
 **ViM performed terribly**: 0.225 AUROC on SVHN (worse than random!)
 
-**Possible reasons I should investigate:**
+**Possible reasons we should investigate:**
 1. Wrong hyperparameter α (residual scaling)
 2. Maybe principal subspace calculation is wrong?
 3. Need more training data to estimate null space properly?
 4. Implementation bug - should double-check the paper
 
-**Note to self**: This is actually realistic - not all methods work perfectly. Good learning experience to debug this.
+**Key observation**: This is actually realistic - not all methods work perfectly. Good learning experience to debug this.
 
 ---
 
-## 🔷 Neural Collapse Deep Dive
+## Neural Collapse Deep Dive
+### What we Learned About NC1
 
-### What I Learned About NC1
+**Our NC1 = 1,126,273** (very high, collapse didn't happen strongly)
 
-**My NC1 = 1,126,273** (very high, collapse didn't happen strongly)
-
-At first I was worried, but after reading the papers:
+At first we were worried, but after reading the papers:
 - NC1 only collapses to near-zero when accuracy > 95%
 - My 78.65% accuracy means classes still have variance
 - This is **expected** for CIFAR-100's difficulty
 
-### NC2 is Perfect! 🎉
+### NC2 is Perfect!
 
 **Equiangular deviation: -0.0101 (target: -0.0101)**
 
@@ -76,7 +75,7 @@ The math makes sense!
 
 ---
 
-## 🧪 Experiments I Want to Try
+##  Experiments we Want to Try
 
 ### 1. Temperature Scaling for Energy Score
 The Energy score uses:
@@ -102,7 +101,7 @@ What if 400 epochs? Would NC1 collapse more?
 
 ---
 
-## 📊 Failure Case Analysis
+##  Failure Case Analysis
 
 **Questions to answer:**
 1. Which CIFAR-100 classes are most confused?
@@ -113,7 +112,7 @@ What if 400 epochs? Would NC1 collapse more?
 
 ---
 
-## 💭 Connections to Theory
+## Connections to Theory
 
 ### Why Neural Collapse Happens
 
@@ -131,7 +130,6 @@ This naturally leads to:
 - Means spreading apart in simplex (NC2)
 - Weights aligning with means (NC3)
 
-**Mind = blown** 🤯
 
 ### Why NECO Works for OOD
 
@@ -145,11 +143,11 @@ NECO measures this geometric violation!
 
 ---
 
-## 🎯 What I Would Do Differently
+## What We Would Do Differently
 
-1. **Start with fewer epochs** - I did 1 epoch test first (smart!), but could've tried 50 epochs before committing to 200
+1. **Start with fewer epochs** - We did 1 epoch test first (smart!), but could've tried 50 epochs before committing to 200
 
-2. **Monitor GPU usage** - I didn't check nvidia-smi during training to see utilization
+2. **Monitor GPU usage** - We didn't check nvidia-smi during training to see utilization
 
 3. **Save more checkpoints** - Every 10 epochs is good, but maybe every 5 after epoch 150 to see NC emergence more granularly
 
@@ -157,7 +155,7 @@ NECO measures this geometric violation!
 
 ---
 
-## 📚 Key Papers I Need to Read Again
+## Key Papers I Need to Read Again
 
 1. **Hendrycks et al. (2019)** - "Deep Anomaly Detection with Outlier Exposure"
 2. **Papyan et al. (2020)** - "Prevalence of Neural Collapse during the terminal phase of deep learning training"
@@ -167,14 +165,14 @@ NECO measures this geometric violation!
 
 ---
 
-## 🤓 Personal Takeaways
+## Key Takeaways
 
-**What surprised me:**
+**What surprised us:**
 - Neural Collapse is real! Not just theory
 - Simple methods (MSP, Energy) can outperform complex ones (ViM)
 - Training to 100% train accuracy doesn't hurt test accuracy much
 
-**What I still don't fully understand:**
+**What we still don't fully understand:**
 - Why ViM failed so badly (need to debug)
 - How to choose between OOD methods in practice
 - The connection between NC and generalization (bonus topic)

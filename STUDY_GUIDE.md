@@ -5,9 +5,9 @@ Practice explaining each section out loud.
 
 ---
 
-## 📚 File-by-File Deep Dive
+## File-by-File Deep Dive
 
-### 1. `config.py` ⚙️
+### 1. `config.py`
 
 **Purpose**: Centralized hyperparameters
 
@@ -28,7 +28,7 @@ WEIGHT_DECAY = 5e-4     # Why? L2 regularization prevents overfitting
 
 ---
 
-### 2. `src/models/resnet_cifar.py` 🏗️
+### 2. `src/models/resnet_cifar.py` 
 
 **Key modification from standard ResNet:**
 ```python
@@ -61,7 +61,7 @@ conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1)  # 32×32 → 32×32
 
 ---
 
-### 3. `src/training/trainer.py` 🎓
+### 3. `src/training/trainer.py` 
 
 **Core training loop explained:**
 
@@ -103,7 +103,7 @@ if test_acc > best_acc:
 
 ---
 
-### 4. `src/ood/scores.py` 🔍
+### 4. `src/ood/scores.py` 
 
 #### **MSP (Baseline)**
 ```python
@@ -166,7 +166,7 @@ score = cos_sim_best - cos_sim_second_best
 
 ---
 
-### 5. `src/neural_collapse/metrics.py` 📐
+### 5. `src/neural_collapse/metrics.py` 
 
 #### **NC1: Within-Class Collapse**
 ```python
@@ -184,21 +184,21 @@ norms = ||μ_c - μ_G|| for all c
 CV = std(norms) / mean(norms)  # Coefficient of variation
 ```
 **Goal**: CV → 0 (all norms equal)
-**My result**: 0.042 ✅ Excellent!
+**My result**: 0.042  Excellent!
 
 ```python
 # Part B: Equiangular (all pairs of means have same angle)
 cos_sim(μ_i, μ_j) = -1/(C-1) for all i ≠ j
 ```
 **For 100 classes**: target = -1/99 = -0.0101
-**My result**: -0.0101 ✅ PERFECT!
+**My result**: -0.0101  PERFECT!
 
 #### **NC3: Self-Duality**
 ```python
 cos_sim(W_c, μ_c - μ_G) for all c
 ```
 **Goal**: → 1 (weights align with class means)
-**My result**: 0.977 ✅ Strong alignment
+**My result**: 0.977  Strong alignment
 
 #### **NC4: NCC Simplification**
 ```python
@@ -211,7 +211,7 @@ y_ncc = argmin_c(||x - μ_c||)  # Nearest class center
 # Agreement:
 accuracy = mean(y_model == y_ncc)
 ```
-**My result**: 100% on train, 96.89% on test ✅
+**My result**: 100% on train, 96.89% on test 
 
 **Professor's question:**
 - Q: "Your NC1 is high but NC2-NC4 are good. Why?"
@@ -219,7 +219,7 @@ accuracy = mean(y_model == y_ncc)
 
 ---
 
-### 6. `src/utils/feature_extraction.py` 🎣
+### 6. `src/utils/feature_extraction.py` 
 
 **How to extract intermediate features:**
 
@@ -246,7 +246,7 @@ handle.remove()
 
 ---
 
-## 🎤 Defense Questions You MUST Be Ready For
+##  Defense Questions You MUST Be Ready For
 
 ### Easy Questions
 
@@ -286,7 +286,7 @@ A: RAG systems need OOD detection for: (1) Detecting out-of-domain queries, (2) 
 
 ---
 
-## 🧠 Quick Quiz Yourself
+## Quick Quiz Yourself
 
 Before defense, practice answering OUT LOUD:
 
@@ -303,7 +303,7 @@ Before defense, practice answering OUT LOUD:
 
 ---
 
-## 💯 Confidence Checklist
+## Confidence Checklist
 
 Before defense, check:
 

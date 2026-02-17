@@ -10,7 +10,7 @@
 from torchvision.models import resnet18
 
 model = resnet18(weights=None)
-model.fc = nn.Linear(512, 100)  # Just change output classes
+model.fc = nn.Linear(512, 100)  
 ```
 
 **Result**: 
@@ -55,7 +55,7 @@ model.fc = nn.Linear(512, 100)
 
 **Result**:
 - Train Acc: 99.98%
-- Test Acc: 78.35% ✅ MUCH BETTER!
+- Test Acc: 78.35% MUCH BETTER!
 
 **Analysis**:
 Feature map sizes now:
@@ -81,5 +81,3 @@ For CIFAR (32×32), need to:
 1. Use smaller first conv kernel (3×3 instead of 7×7)
 2. Reduce stride (1 instead of 2)
 3. Remove maxpool
-
-This is now standard practice in literature - see PyTorch CIFAR examples.

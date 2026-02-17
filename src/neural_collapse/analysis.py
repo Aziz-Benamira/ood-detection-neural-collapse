@@ -3,16 +3,12 @@ Neural Collapse analysis orchestration.
 
 This module provides high-level functions that run the full NC1-NC4
 analysis, the NC5 test-time analysis, and the bonus NC-across-layers
-experiment.  It calls into ``metrics.py`` for the individual
-measurements.
+experiment.
 
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
 """
 
 import logging
 from typing import Dict, Tuple
-
 import numpy as np
 from torch.utils.data import DataLoader
 import torch
@@ -36,30 +32,6 @@ def run_full_nc_analysis(
     """
     Run the complete NC1-NC5 analysis and return all metrics in a single
     dictionary.
-
-    NC5 extends NC4 from training data to **test data**.  The claim is
-    that after Neural Collapse, the network classifies test samples
-    essentially by nearest class center, using the class means learned
-    from the training set.
-
-    Why NC5 matters for OOD:
-    If the classifier simplifies to NCC for in-distribution data, then
-    OOD samples should be far from *all* class centers.  This observation
-    is the foundation of the NECO method.
-
-    Parameters
-    ----------
-    model : nn.Module
-    train_features, train_labels : np.ndarray
-        Training features and labels (NC is a training-time phenomenon).
-    id_features, id_logits, id_labels : np.ndarray
-        Test (in-distribution) features, logits, and labels (for NC5).
-    class_means : np.ndarray, shape (C, D)
-        Per-class means (typically from Mahalanobis fitting).
-    num_classes : int
-
-    Returns
-    -------
     results : dict
         Contains all NC metrics plus NC5 agreement numbers.
     """
@@ -99,7 +71,6 @@ def run_full_nc_analysis(
     results['nc4_model_acc'] = nc4_model_acc
 
     # NC5: NCC on test data
-    # We use the class means from TRAINING data, but evaluate on TEST data.
     logger.info("NC5: Nearest Class Center on Test Data")
     test_h_sq = np.sum(id_features ** 2, axis=1, keepdims=True)
     test_mu_sq = np.sum(class_means ** 2, axis=1)
@@ -123,7 +94,6 @@ def run_full_nc_analysis(
     results['nc5_model_test_acc'] = model_test_acc
     results['nc5_test_agreement'] = test_agreement
 
-    logger.info("=" * 60)
 
     return results
 
@@ -141,27 +111,6 @@ def measure_nc_across_layers(
     that Neural Collapse is strongest in the deepest layers (closest to
     the loss).
 
-    Hypothesis: NC should be strongest in the last layers (closest to
-    the loss) and weaker in earlier layers.  This is because Neural
-    Collapse is driven by the cross-entropy loss optimizing the features
-    and classifier jointly.
-
-    Parameters
-    ----------
-    model : nn.Module
-    train_loader : DataLoader
-    device : torch.device
-    train_features_penult : np.ndarray
-        Pre-extracted penultimate layer features (to avoid re-extracting).
-    train_labels : np.ndarray
-    num_classes : int
-
-    Returns
-    -------
-    nc1_per_layer : dict
-        ``{layer_name: nc1_value}``.
-    per_class_var_per_layer : dict
-        ``{layer_name: np.ndarray}``.
     """
     logger.info("Extracting features from all ResNet-18 layers...")
     layer_features, layer_labels = extract_multi_layer_features(model, train_loader, device)
@@ -170,7 +119,7 @@ def measure_nc_across_layers(
         logger.info("  %s: shape %s", name, feats.shape)
 
     logger.info("\nMeasuring NC1 across layers:")
-    logger.info("=" * 50)
+
 
     nc1_per_layer: Dict[str, float] = {}
     per_class_var_per_layer: Dict[str, np.ndarray] = {}
@@ -185,7 +134,6 @@ def measure_nc_across_layers(
     nc1_penult, pcv_penult = measure_nc1(train_features_penult, train_labels, num_classes)
     nc1_per_layer['avgpool'] = nc1_penult
     per_class_var_per_layer['avgpool'] = pcv_penult
-    logger.info("  avgpool (penultimate): NC1 = %.6f (feature dim = %d)",
-                nc1_penult, train_features_penult.shape[1])
+    logger.info("  avgpool (penultimate): NC1 = %.6f (feature dim = %d)", nc1_penult, train_features_penult.shape[1])
 
     return nc1_per_layer, per_class_var_per_layer

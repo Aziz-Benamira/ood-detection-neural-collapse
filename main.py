@@ -16,9 +16,6 @@ Full pipeline:
 
 Skip training (reuse existing checkpoint):
     python main.py --skip-train --checkpoint outputs/checkpoints/best_model.pth
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
 """
 
 import argparse

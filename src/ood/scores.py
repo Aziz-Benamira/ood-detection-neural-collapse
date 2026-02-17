@@ -2,19 +2,16 @@
 OOD (Out-of-Distribution) scoring functions.
 
 Each function takes features and/or logits and returns a per-sample score
-where **higher values indicate in-distribution** data.
+where higher values indicate in-distribution data.
 
 Implemented methods
--------------------
-1. MSP  — Maximum Softmax Probability  (Hendrycks & Gimpel, ICLR 2017)
-2. Max Logit  (Hendrycks et al., ICML 2022)
-3. Energy  (Liu et al., NeurIPS 2020)
-4. Mahalanobis  (Lee et al., NeurIPS 2018)
-5. ViM  — Virtual-logit Matching  (Wang et al., CVPR 2022)
-6. NECO  — Neural Collapse inspired OOD detection  (Ammar et al., ICLR 2024)
 
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
+1. MSP  — Maximum Softmax Probability 
+2. Max Logit  
+3. Energy  
+4. Mahalanobis 
+5. ViM  — Virtual-logit Matching  
+6. NECO  — Neural Collapse inspired OOD detection 
 """
 
 import logging
@@ -29,7 +26,7 @@ from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
-# MSP: Maximum Softmax Probability (Hendrycks & Gimpel, ICLR 2017)
+# MSP: Maximum Softmax Probability 
 
 def score_msp(logits: np.ndarray) -> np.ndarray:
     """
@@ -42,30 +39,26 @@ def score_msp(logits: np.ndarray) -> np.ndarray:
     return np.max(softmax_probs, axis=1)
 
 
-# Max Logit Score (Hendrycks et al., ICML 2022)
+# Max Logit Score
 
 def score_max_logit(logits: np.ndarray) -> np.ndarray:
-    """
-    Maximum raw logit. Higher = more likely ID.
-    """
+    #Maximum raw logit. Higher = more likely ID.
     return np.max(logits, axis=1)
 
-# Energy Score (Liu et al., NeurIPS 2020)
-# S = LogSumExp(z / T) where z are logits
+# Energy Score 
 
 def score_energy(logits: np.ndarray, temperature: float = 1.0) -> np.ndarray:
-    """Energy score = T * LogSumExp(logits / T). Higher = more likely ID."""
     return temperature * logsumexp(logits / temperature, axis=1)
 
 
-# Mahalanobis Distance (Lee et al., NeurIPS 2018)
+# Mahalanobis Distance
 
 def compute_class_statistics(
     features: np.ndarray,
     labels: np.ndarray,
     num_classes: int = 100,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Compute per-class means and shared covariance. Returns (means, cov, precision)."""
+    #Compute per-class means and shared covariance.
     D = features.shape[1]
     class_means = np.zeros((num_classes, D))
     for c in range(num_classes):
@@ -86,9 +79,7 @@ def score_mahalanobis(
     class_means: np.ndarray,
     precision: np.ndarray,
 ) -> np.ndarray:
-    """
-    Negative minimum Mahalanobis distance. Higher = more likely ID.
-    """
+    #Negative minimum Mahalanobis distance. Higher = more likely ID.
     num_classes = class_means.shape[0]
     N = features.shape[0]
 
@@ -101,7 +92,7 @@ def score_mahalanobis(
 
     return -np.min(all_distances, axis=1)
 
-# ViM: Virtual-logit Matching (Wang et al., CVPR 2022)
+# ViM: Virtual-logit Matching 
 
 def compute_vim_parameters(
     model,
@@ -114,7 +105,7 @@ def compute_vim_parameters(
     b = model.fc.bias.detach().cpu().numpy()
     u = -np.linalg.pinv(W) @ b
 
-    # for resnet18 (D=512): keep top 300 eigenvalues as principal space
+    # keep top 300 eigenvalues as principal space
     DIM = 300
 
     ec = EmpiricalCovariance(assume_centered=True)
@@ -140,19 +131,19 @@ def score_vim(
     alpha: float,
     u: np.ndarray,
 ) -> np.ndarray:
-    """ViM score = energy - alpha * vlogit. Higher = more likely ID."""
+    #Higher = more likely ID
     vlogit = norm(np.matmul(features - u, NS), axis=-1) * alpha
     energy = logsumexp(logits, axis=-1)
     return -vlogit + energy
 
 
-# NECO: Neural Collapse Based OOD Detection (Ammar et al., ICLR 2024)
+# NECO: Neural Collapse Based OOD Detection
 
 def compute_neco_parameters(
     train_features: np.ndarray,
     neco_dim: int = 100,
 ):
-    """Fit StandardScaler + PCA on training features for NECO scoring."""
+    #Fit StandardScaler + PCA on training features for NECO scoring.
     ss = StandardScaler()
     scaled = ss.fit_transform(train_features)
 
@@ -168,7 +159,7 @@ def score_neco(
     pca: PCA,
     neco_dim: int,
 ) -> np.ndarray:
-    """NECO score = ||h_reduced|| / ||h_full||. Higher = more likely ID."""
+    
     scaled = scaler.transform(features)
     reduced_all = pca.transform(scaled)
     reduced = reduced_all[:, :neco_dim]

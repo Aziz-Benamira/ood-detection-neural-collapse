@@ -18,11 +18,8 @@ echo "=========================================="
 # Check GPU
 nvidia-smi
 
-# Activate virtual environment
-source /home/ensta/ensta-ben-amira/envs/agentic_ai/bin/activate
-
 # Navigate to project directory
-cd /home/ensta/ensta-ben-amira/ood_detection/project
+cd /home/ensta/ensta-ben-aissa/ood-detection-neural-collapse
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
@@ -36,6 +33,6 @@ python3 main.py \
     --num-workers 8 \
     --seed 42
 
-echo "=========================================="
+
 echo "Finished at: $(date)"
-echo "=========================================="
+

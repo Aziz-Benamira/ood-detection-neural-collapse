@@ -1,12 +1,7 @@
-"""
-Visualization utilities — all plots are saved to disk as PNG files
-(``plt.show()`` won't work on a headless SSH cluster).
+"""Visualization utilities for generating and saving plots as PNG files.
 
 Every function takes an ``output_dir`` argument and writes the figure
 to ``<output_dir>/<filename>.png``.
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
 """
 
 import logging
@@ -14,16 +9,15 @@ import os
 from typing import Dict, List, Optional
 
 import matplotlib
-matplotlib.use('Agg')  # non-interactive backend for SSH / headless servers
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns  # noqa: F401 — imported for its side-effects on styling
+import seaborn as sns
 
 logger = logging.getLogger(__name__)
 
 
 def _save(fig, output_dir: str, filename: str, dpi: int = 150):
-    """Save a matplotlib figure and close it."""
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, filename)
     fig.savefig(path, dpi=dpi, bbox_inches='tight')
@@ -31,26 +25,10 @@ def _save(fig, output_dir: str, filename: str, dpi: int = 150):
     logger.info("Plot saved → %s", path)
 
 
-# Training curves
-
-
 def plot_training_curves(history: dict, output_dir: str):
-    """
-    Plot training & test loss/accuracy curves and the LR schedule.
 
-    These plots are a DELIVERABLE: the professor wants to see them.
-    We plot loss and accuracy side by side, and also the LR schedule.
-
-    Parameters
-    ----------
-    history : dict
-        Must contain keys 'train_loss', 'test_loss', 'train_acc', 'test_acc', 'lr'.
-    output_dir : str
-        Directory to save the plot.
-    """
+    #Plot training & test loss/accuracy curves and the LR schedule.
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-
-    # Loss curves
     axes[0].plot(history['train_loss'], label='Train Loss', alpha=0.8)
     axes[0].plot(history['test_loss'], label='Test Loss', alpha=0.8)
     ax.set_xlabel('Epoch')
@@ -82,9 +60,6 @@ def plot_training_curves(history: dict, output_dir: str):
     logger.info("Final test acc:  %.2f%%", history['test_acc'][-1] * 100)
 
 
-# OOD score distributions
-
-
 def plot_ood_score_distributions(
     ood_results: Dict[str, dict],
     output_dir: str,
@@ -92,15 +67,6 @@ def plot_ood_score_distributions(
 ):
     """
     Plot histograms of OOD scores for each method (ID vs OOD).
-
-    Parameters
-    ----------
-    ood_results : dict
-        ``{method_name: {'id': np.ndarray, 'ood': np.ndarray, 'auroc': float}}``.
-    output_dir : str
-        Directory to save the plot.
-    ood_name : str
-        Name of the OOD dataset (used in titles).
     """
     methods = list(ood_results.keys())
     n_methods = len(methods)
@@ -112,7 +78,6 @@ def plot_ood_score_distributions(
     for idx, method_name in enumerate(methods):
         ax = axes[idx]
         result = ood_results[method_name]
-
         ax.hist(result['id'], bins=80, alpha=0.6, density=True,
                 label='ID (CIFAR-100)', color='blue')
         ax.hist(result['ood'], bins=80, alpha=0.6, density=True,
@@ -124,11 +89,10 @@ def plot_ood_score_distributions(
         ax.legend(fontsize=9)
         ax.grid(True, alpha=0.3)
 
-    # Fill remaining axes with a summary table or hide them
     for idx in range(n_methods, len(axes)):
         ax = axes[idx]
         if idx == n_methods:
-            summary_text = "AUROC Summary\n" + "=" * 25 + "\n"
+            summary_text = "AUROC Summary\n" + "-" * 25 + "\n"
             for m in methods:
                 summary_text += f"{m:15s} {ood_results[m]['auroc']:.4f}\n"
             ax.text(0.1, 0.5, summary_text, fontsize=14, fontfamily='monospace',
@@ -142,9 +106,6 @@ def plot_ood_score_distributions(
     _save(fig, output_dir, f'ood_scores_{ood_name.lower()}.png')
 
 
-# Final OOD bar-chart comparison
-
-
 def plot_final_ood_comparison(
     ood_results: Dict[str, dict],
     output_dir: str,
@@ -152,13 +113,6 @@ def plot_final_ood_comparison(
 ):
     """
     Bar chart comparison of AUROC across all OOD methods.
-
-    Parameters
-    ----------
-    ood_results : dict
-        ``{method_name: {'auroc': float, ...}}``.
-    output_dir : str
-    ood_name : str
     """
     methods = list(ood_results.keys())
     auroc_values = [ood_results[m]['auroc'] for m in methods]
@@ -206,20 +160,6 @@ def plot_neural_collapse(
 ):
     """
     Create the 6-panel Neural Collapse figure (NC1-NC4).
-
-    These are DELIVERABLES: the professor wants to see these plots.
-
-    Parameters
-    ----------
-    per_class_var : np.ndarray, shape (C,)
-    cos_sim_matrix : np.ndarray, shape (C, C)
-    nc3_cos_sims : np.ndarray, shape (C,)
-    nc3_mean_cos : float
-    nc4_model_acc, nc4_ncc_acc, nc4_agreement : float
-    train_features : np.ndarray, shape (N, D)
-    train_labels : np.ndarray, shape (N,)
-    num_classes : int
-    output_dir : str
     """
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
 
@@ -304,8 +244,7 @@ def plot_neural_collapse(
     ax.set_ylim([0, 105])
     ax.grid(True, alpha=0.3, axis='y')
 
-    plt.suptitle('Neural Collapse Analysis (NC1-NC4) on CIFAR-100 Training Data',
-                 fontsize=14, y=1.02)
+    plt.suptitle('Neural Collapse Analysis (NC1-NC4) on CIFAR-100 Training Data',fontsize=14, y=1.02)
     plt.tight_layout()
     _save(fig, output_dir, 'neural_collapse_nc1_nc4.png')
 
@@ -325,20 +264,7 @@ def plot_neco_analysis(
     ood_name: str = "SVHN",
 ):
     """
-    Visualize the NECO score: distribution + similarity patterns for
-    typical ID and OOD samples.
-
-    Parameters
-    ----------
-    id_neco, ood_neco : np.ndarray
-        NECO scores for ID and OOD samples.
-    auroc_neco : float
-    id_features, ood_features : np.ndarray
-        Raw feature arrays (before centering).
-    neco_normalized_means : np.ndarray, shape (C, D)
-    neco_global_mean : np.ndarray, shape (D,)
-    output_dir : str
-    ood_name : str
+    Visualize the NECO score: distribution and similarity patterns.
     """
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
@@ -401,23 +327,12 @@ def plot_nc_across_layers(
     per_class_var_per_layer: Dict[str, np.ndarray],
     output_dir: str,
 ):
-    """
-    Plot NC1 metric vs. layer depth (Bonus analysis).
 
-    Parameters
-    ----------
-    nc1_per_layer : dict
-        ``{layer_name: nc1_value}``.
-    per_class_var_per_layer : dict
-        ``{layer_name: np.ndarray of per-class variances}``.
-    output_dir : str
-    """
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     layer_names = list(nc1_per_layer.keys())
     nc1_values = [nc1_per_layer[n] for n in layer_names]
 
-    # NC1 metric across layers
     ax = axes[0]
     ax.plot(layer_names, nc1_values, 'bo-', markersize=10, linewidth=2)
     ax.set_xlabel('Layer')
@@ -425,9 +340,8 @@ def plot_nc_across_layers(
     ax.set_title('NC1 (Within-class Collapse) Across Layers\n'
                  'Clearly decreases towards the output', fontsize=12)
     ax.grid(True, alpha=0.3)
-    ax.set_yscale('log')  # log scale because the differences can be large
+    ax.set_yscale('log')
 
-    # Mean within-class variance across layers
     ax = axes[1]
     mean_vars = [per_class_var_per_layer[n].mean() for n in layer_names]
     ax.plot(layer_names, mean_vars, 'rs-', markersize=10, linewidth=2)
