@@ -6,13 +6,10 @@ NC3 — Convergence to Self-Duality (Classifier-Feature Alignment)
 NC4 — Simplification to Nearest Class Center (NCC)
 """
 
-import logging
 from typing import Tuple
 
 import numpy as np
 from scipy import linalg
-
-logger = logging.getLogger(__name__)
 
 
 # NC1: Within-class Variability Collapse
@@ -85,11 +82,6 @@ def measure_nc2(
 
     target_cos = -1.0 / (num_classes - 1)
 
-    logger.info("  Equinorm: coefficient of variation = %.6f (should be ~0)", norm_std)
-    logger.info("  Equiangular: mean off-diag cos sim = %.6f", cos_mean_off_diag)
-    logger.info("               std off-diag cos sim  = %.6f", cos_std_off_diag)
-    logger.info("               target (Simplex ETF)  = %.6f", target_cos)
-
     return norm_std, cos_sim_matrix, cos_mean_off_diag
 
 
@@ -118,10 +110,6 @@ def measure_nc3(
         cos_sims[c] = np.dot(w_norm, m_norm)
 
     mean_cos = cos_sims.mean()
-    logger.info("  Mean cosine similarity (w_c, μ_c - μ_G): %.6f (should be ~1)", mean_cos)
-    logger.info("  Min:  %.6f", cos_sims.min())
-    logger.info("  Max:  %.6f", cos_sims.max())
-    logger.info("  Std:  %.6f", cos_sims.std())
 
     return cos_sims, mean_cos
 
@@ -159,10 +147,6 @@ def measure_nc4(
     ncc_accuracy = np.mean(ncc_preds == labels)
     model_accuracy = np.mean(model_preds == labels)
 
-    logger.info("  Model accuracy:    %.2f%%", model_accuracy * 100)
-    logger.info("  NCC accuracy:      %.2f%%", ncc_accuracy * 100)
-    logger.info("  Agreement (model vs NCC): %.2f%%", agreement * 100)
-
     return agreement, ncc_accuracy, model_accuracy
 
 
@@ -186,6 +170,5 @@ def measure_nc5_ood(
         cos_abs[c] = np.abs(np.dot(class_means[c], ood_mean) / (c_norm * ood_norm + 1e-10))
 
     nc5 = cos_abs.mean()
-    logger.info("  NC5 OOD: mean |cos| = %.6f (should be ~0 for orthogonality)", nc5)
 
     return nc5

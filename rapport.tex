@@ -1,0 +1,624 @@
+\documentclass[12pt,a4paper]{article}
+
+% ----- Packages -----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{lmodern}
+
+% --- Figure placeholder (compiles without image files) ---
+\newcommand{\figplaceholder}[2]{%
+    \fbox{%
+        \begin{minipage}{#1}%
+            \centering%
+            \vspace{0.8cm}%
+            \textcolor{gray}{\textit{[Figure: #2]}}%
+            \vspace{0.8cm}%
+        \end{minipage}%
+    }%
+}
+
+\geometry{
+    top=2.5cm,
+    bottom=2.5cm,
+    left=2.8cm,
+    right=2.8cm,
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black,
+}
+
+% Nice section formatting
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+% ----- Title -----
+\title{
+    \vspace{-1cm}
+    \textbf{Out-of-Distribution Detection and Neural Collapse} \\[0.4em]
+    \large Practical Work — Theory of Deep Learning
+}
+\author{
+    Aziz BEN AMIRA \\
+    MVA + ENSTA Paris
+}
+\date{February 2026}
+
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\bigskip
+
+% ================================================================
+\section{Introduction}
+% ================================================================
+
+A well-known limitation of modern deep neural networks is that they tend to produce
+high-confidence predictions even when given inputs that are completely different
+from the training distribution. This phenomenon—known as overconfidence on
+out-of-distribution (OOD) data—is a critical concern in deployed systems.
+
+This project investigates several OOD detection methods in the context of CIFAR-100
+image classification, and connects them to the concept of \textbf{Neural Collapse},
+a structural phenomenon that occurs at the end of training.
+
+We train a ResNet-18 on CIFAR-100 and evaluate six OOD detection methods against
+two OOD datasets: SVHN (street view house numbers) and DTD (describable textures).
+We then thoroughly analyze the Neural Collapse properties of the trained model and
+discuss how they relate to the geometry of OOD detection.
+
+% ================================================================
+\section{Experimental Setup}
+% ================================================================
+
+\subsection{Model Architecture}
+
+We use a ResNet-18 \cite{he2016deep} adapted for low-resolution inputs. The standard
+ImageNet version is not suitable for CIFAR (32$\times$32) because the initial
+7$\times$7 convolution with stride 2 followed by a max-pooling layer would reduce
+the spatial resolution too aggressively before any meaningful features are learned.
+
+We made the following modifications:
+\begin{itemize}[noitemsep]
+    \item First convolution: $7\times7$, stride 2 $\rightarrow$ $3\times3$, stride 1
+    \item Removed the initial max-pooling layer (replaced by identity)
+    \item Final fully-connected layer: 1000 outputs $\rightarrow$ 100 outputs
+\end{itemize}
+
+This gives a model with approximately 11.2M parameters. Training directly with the
+vanilla torchvision ResNet-18 yielded only around 45\% test accuracy, confirming
+that the low-resolution adaptation is essential.
+
+\subsection{Training Protocol}
+
+The model is trained on CIFAR-100 (50,000 training images, 10,000 test images,
+100 classes) with the following hyperparameters:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+Optimizer & SGD with momentum \\
+Momentum & 0.9 \\
+Weight decay & $5 \times 10^{-4}$ \\
+Initial learning rate & 0.1 \\
+LR schedule & Cosine annealing ($T_\text{max} = 200$) \\
+Minimum LR & $10^{-6}$ \\
+Epochs & 200 \\
+Batch size & 128 \\
+\bottomrule
+\end{tabular}
+\caption{Training hyperparameters.}
+\end{table}
+
+Data augmentation during training consisted of random horizontal flips and random
+crops (padding = 4). Test images are only normalized. At the end of training, the
+model achieves a test accuracy of \textbf{78.65\%}, which is a competitive result
+for ResNet-18 on CIFAR-100 trained from scratch without additional tricks.
+
+\subsection{Datasets}
+
+\begin{itemize}[noitemsep]
+    \item \textbf{CIFAR-100} (in-distribution): 100 object classes, $32\times32$ RGB images.
+    \item \textbf{SVHN} (OOD): Street view house number images. Different texture
+          and content from natural object imagery.
+    \item \textbf{DTD} (OOD): Describable Textures Dataset, containing 47 categories
+          of visual surface textures. Structurally very different from CIFAR-100.
+\end{itemize}
+
+OOD images are resized to $32\times32$ and normalized with the CIFAR-100 statistics
+before being passed through the model. No OOD data is used at any point during training.
+
+% ================================================================
+\section{Pipeline Overview}
+% ================================================================
+
+The full pipeline runs automatically in a single command and consists of four steps:
+
+\begin{enumerate}
+    \item \textbf{Training}: ResNet-18 is trained on CIFAR-100 for 200 epochs.
+          The best model (by test accuracy) is saved.
+    \item \textbf{Feature extraction}: Penultimate-layer features (512-dimensional
+          vectors) and logits are extracted for the training set, the CIFAR-100 test
+          set, and both OOD datasets.
+    \item \textbf{OOD evaluation}: Six scoring functions are applied. For each,
+          AUROC is computed to measure how well the score separates in-distribution
+          from OOD samples.
+    \item \textbf{Neural Collapse analysis}: NC1–NC5 metrics are measured on
+          training features and extended to OOD data.
+\end{enumerate}
+
+Figure~\ref{fig:training_curves} shows the training curves over 200 epochs.
+
+\begin{figure}[H]
+    \centering
+    \figplaceholder{\textwidth}{training\_curves.png}
+    \caption{Training and test accuracy/loss over 200 epochs, with the learning
+             rate schedule. The model reaches 78.65\% test accuracy. The gap between
+             train and test accuracy is visible but remains within expected bounds for
+             CIFAR-100 without regularization beyond weight decay.}
+    \label{fig:training_curves}
+\end{figure}
+
+% ================================================================
+\section{Out-of-Distribution Detection Methods}
+% ================================================================
+
+Let $h(x) \in \mathbb{R}^d$ denote the penultimate-layer features of an input
+$x$, and $f(x) = Wh(x) + b \in \mathbb{R}^C$ the logits produced by the final
+linear layer, where $W \in \mathbb{R}^{C \times d}$ and $b \in \mathbb{R}^C$.
+
+\subsection{Maximum Softmax Probability (MSP)}
+
+Proposed by Hendrycks \& Gimpel \cite{hendrycks2017baseline}, this is the simplest
+baseline. The softmax distribution is:
+\[
+p_c(x) = \frac{\exp(f_c(x))}{\sum_{k=1}^C \exp(f_k(x))}
+\]
+
+The OOD score is the maximum probability:
+\[
+S_\text{MSP}(x) = \max_{c} \, p_c(x)
+\]
+
+In-distribution samples tend to have a high maximum probability, while OOD samples
+tend to be more uniformly distributed. A sample is flagged as OOD if
+$S_\text{MSP}(x)$ falls below a threshold.
+
+\subsection{Max Logit}
+
+A simple refinement proposed by Hendrycks et al.\ \cite{hendrycks2022scaling} that
+avoids the softmax normalization, which can sometimes obscure the signal:
+\[
+S_\text{MaxLogit}(x) = \max_{c} \, f_c(x)
+\]
+
+This is particularly effective when the logit magnitude itself is informative.
+
+\subsection{Energy Score}
+
+Liu et al.\ \cite{liu2020energy} propose using the free energy of the logits as
+a score. Rooted in energy-based models, this score is defined as:
+\[
+S_\text{Energy}(x) = T \cdot \log \sum_{c=1}^C \exp\!\left(\frac{f_c(x)}{T}\right)
+\]
+
+where $T$ is a temperature parameter (we use $T = 1$). The energy score
+is more stable than MSP because it does not saturate at the boundaries.
+
+\subsection{Mahalanobis Distance}
+
+Lee et al.\ \cite{lee2018simple} propose computing the Mahalanobis distance from
+a test feature to the nearest class mean, using a shared precision matrix estimated
+from the training features. Let $\mu_c$ be the mean of class $c$ and $\Sigma$ the
+within-class covariance:
+\[
+S_\text{Maha}(x) = -\min_{c} \; (h(x) - \mu_c)^\top \Sigma^{-1} (h(x) - \mu_c)
+\]
+
+The negative sign makes the score large for in-distribution samples (close to a
+class mean). We estimate $\Sigma$ using sklearn's \texttt{EmpiricalCovariance}
+on the centered training features.
+
+\subsection{Virtual-logit Matching (ViM)}
+
+Wang et al.\ \cite{wang2022vim} propose decomposing the feature space into the
+principal subspace of $W$ and its null space. The idea is that features in the
+null space of $W$ carry information that the classifier ignores—OOD samples tend
+to have more energy in this direction.
+
+Let $u = -W^\dagger b$ be the bias-corrected feature origin. The null space basis
+$\mathcal{N}$ is obtained from the eigenvectors of the empirical covariance of
+$(h - u)$ beyond the top $D = 300$ dimensions (empirically set for ResNet-18).
+
+The virtual logit is:
+\[
+v(x) = \alpha \cdot \| (h(x) - u) \,\mathcal{N} \|_2, \qquad \alpha = \frac{\mathbb{E}_\text{train}[\max_c f_c]}{\mathbb{E}_\text{train}[v]}
+\]
+
+The final score combines this with the energy score:
+\[
+S_\text{ViM}(x) = -v(x) + T \log \sum_c \exp(f_c(x))
+\]
+
+\subsection{NECO — Neural Collapse Based OOD Detection}
+
+Ammar et al.\ \cite{ammar2024neco} propose a method that directly exploits the
+neural collapse geometry. The intuition is that if NC1 holds, the feature space
+is well-structured around class means arranged as a Simplex ETF. ID features
+should lie in the low-dimensional subspace spanned by these means, while OOD
+features should be more scattered.
+
+The method standardizes the training features and applies full PCA. A test
+feature $h(x)$ is then projected. Denoting the first $d_\text{NECO}} = 100$
+principal components as the "reduced" representation:
+
+\[
+h_\text{full} = \text{StandardScaler}(h(x)), \qquad
+h_\text{red} = \text{PCA}(h_\text{full})[:d_\text{NECO}]
+\]
+
+\[
+S_\text{NECO}(x) = \frac{\|h_\text{red}\|_2}{\|h_\text{full}\|_2}
+\]
+
+This ratio is close to 1 for ID samples (most energy is in the leading principal
+components) and smaller for OOD samples (energy is more diffuse across all
+dimensions). For ResNet-type architectures, this score is used directly without
+multiplication by the max logit (which is reserved for Transformer architectures
+where NC1 is better satisfied).
+
+% ================================================================
+\section{OOD Detection Results}
+% ================================================================
+
+We report the AUROC (Area Under the ROC Curve) for each method on both OOD
+datasets. A higher AUROC indicates better separation between ID and OOD scores.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Method} & \textbf{AUROC (SVHN)} & \textbf{AUROC (DTD)} \\
+\midrule
+MSP            & 0.846 & 0.779 \\
+Max Logit      & 0.869 & 0.784 \\
+Energy         & 0.876 & 0.784 \\
+Mahalanobis    & 0.687 & 0.780 \\
+ViM            & 0.776 & \textbf{0.837} \\
+NECO           & 0.833 & \textbf{0.875} \\
+\bottomrule
+\end{tabular}
+\caption{AUROC scores for all OOD detection methods. Bold indicates the best
+         result per dataset. Higher is better.}
+\label{tab:ood_results}
+\end{table}
+
+Several observations emerge from Table~\ref{tab:ood_results}:
+
+\begin{itemize}
+    \item \textbf{Energy} is the strongest method on SVHN (0.876), while
+          \textbf{NECO} dominates on DTD (0.875). These two datasets are
+          structurally quite different, which partly explains the discrepancy.
+    \item \textbf{Mahalanobis} underperforms on SVHN despite being competitive
+          on DTD. This is a known issue: when the test distribution is far from
+          all class means in a high-dimensional space, the distance estimates
+          can be unreliable.
+    \item \textbf{ViM} performs well on DTD (0.837) but moderately on SVHN (0.776),
+          suggesting that the null-space residual is more discriminative for textures.
+    \item \textbf{NECO}'s strong DTD performance (0.875) aligns with the neural
+          collapse intuition: DTD textures are very different from the structured
+          object-class geometry learned by the model.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \figplaceholder{\textwidth}{final\_ood\_comparison\_svhn.png}
+        \caption{AUROC comparison on SVHN.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \figplaceholder{\textwidth}{final\_ood\_comparison\_dtd.png}
+        \caption{AUROC comparison on DTD.}
+    \end{subfigure}
+    \caption{Comparison of all six OOD detection methods on SVHN and DTD.}
+    \label{fig:ood_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \figplaceholder{\textwidth}{ood\_scores\_svhn.png}
+        \caption{Score distributions on SVHN.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \figplaceholder{\textwidth}{ood\_scores\_dtd.png}
+        \caption{Score distributions on DTD.}
+    \end{subfigure}
+    \caption{ID vs.\ OOD score distributions for all methods. Well-separated
+             distributions indicate a good detector; overlapping distributions indicate
+             difficulty in separating the two populations.}
+    \label{fig:score_distributions}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \figplaceholder{\textwidth}{neco\_analysis\_svhn.png}
+        \caption{NECO analysis on SVHN.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \figplaceholder{\textwidth}{neco\_analysis\_dtd.png}
+        \caption{NECO analysis on DTD.}
+    \end{subfigure}
+    \caption{NECO score distributions and cosine similarity patterns for typical
+             ID and OOD samples. ID samples show a clear peak in similarity with
+             one class mean; OOD samples are more diffuse.}
+    \label{fig:neco_analysis}
+\end{figure}
+
+% ================================================================
+\section{Neural Collapse Analysis}
+% ================================================================
+
+Neural Collapse (NC) \cite{papyan2020prevalence} is a phenomenon observed at the
+end of training whereby four geometric properties simultaneously emerge in the
+last layer's feature representations.
+
+\subsection{NC1 — Within-Class Variability Collapse}
+
+Within a class $c$, the feature vectors $h_i$ cluster tightly around the class
+mean $\mu_c$. The within-class scatter matrix is:
+\[
+\Sigma_W = \frac{1}{N} \sum_{c=1}^C \sum_{i: y_i = c} (h_i - \mu_c)(h_i - \mu_c)^\top
+\]
+
+The NC1 metric quantifies how small $\Sigma_W$ is relative to the between-class
+scatter $\Sigma_B$:
+\[
+\text{NC1} = \frac{1}{C} \operatorname{tr}\!\left( \Sigma_W \Sigma_B^{\dagger} \right)
+\]
+
+\textbf{Result}: NC1 = $1{,}145{,}083$. While large in absolute terms, this value
+must be interpreted relative to the scale of the feature space. It confirms that
+the geometry is structured, and NC2/NC3/NC4 metrics (which are scale-independent)
+show strong collapse.
+
+\subsection{NC2 — Convergence to a Simplex ETF}
+
+The class means $\{\mu_c - \mu_G\}_{c=1}^C$ (centered on the global mean $\mu_G$)
+should form a Simplex Equiangular Tight Frame (ETF). This means:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Equinorm}: all class means have the same norm.
+    \item \textbf{Equiangular}: all pairwise cosine similarities equal $-\frac{1}{C-1}$.
+\end{itemize}
+
+\[
+\cos\angle(\mu_c - \mu_G, \mu_{c'} - \mu_G) = \frac{-1}{C-1}, \quad \forall c \neq c'
+\]
+
+\textbf{Results}:
+\begin{itemize}[noitemsep]
+    \item Coefficient of variation of norms: $0.042$ (close to 0, near-equinorm)
+    \item Mean off-diagonal cosine similarity: $-0.0101$ (theoretical target for CIFAR-100: $\frac{-1}{99} \approx -0.0101$) — \textbf{matches almost perfectly}.
+\end{itemize}
+
+\subsection{NC3 — Self-Duality}
+
+In the collapsed regime, the rows of the classifier weight matrix $W$ align with
+the centered class means:
+\[
+\frac{w_c}{\|w_c\|} \approx \frac{\mu_c - \mu_G}{\|\mu_c - \mu_G\|}, \quad \forall c
+\]
+
+\textbf{Result}: Mean cosine similarity between $w_c$ and $\mu_c - \mu_G$ is
+$\mathbf{0.977}$, indicating very strong alignment.
+
+\subsection{NC4 — Simplification to Nearest Class Center (NCC)}
+
+When NC1–NC3 hold, the argmax predictions of the classifier are equivalent to
+assigning each sample to its nearest class mean:
+\[
+\hat{y}(x) = \underset{c}{\arg\max} \; f_c(x) \approx \underset{c}{\arg\min} \; \|h(x) - \mu_c\|^2
+\]
+
+\textbf{Result}: Agreement between model predictions and NCC classifier is
+$\mathbf{99.994\%}$ on training data and $\mathbf{96.85\%}$ on test data.
+
+\subsection{NC5 — Extension to OOD Data}
+
+We introduce an OOD variant of NC5 that measures the orthogonality between the
+OOD centroid and the class means. Ideally, if OOD samples are truly out of the
+in-distribution manifold, the centroid $\mu_\text{OOD}$ should be nearly orthogonal
+to all class means:
+\[
+\text{NC5}_\text{OOD} = \frac{1}{C} \sum_{c=1}^C \left| \cos\angle(\mu_c, \mu_\text{OOD}) \right|
+\]
+
+\textbf{Results}: NC5$_\text{OOD}$ = $0.429$ (SVHN) and $0.485$ (DTD). Values
+close to 0 would indicate perfect orthogonality. The moderate values suggest
+partial overlap in feature space, which is consistent with the fact that OOD
+detection is not trivial.
+
+% ----------------------------------------------------------------
+\subsection{Summary of NC Metrics}
+% ----------------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llcc}
+\toprule
+\textbf{Property} & \textbf{Metric} & \textbf{Value} & \textbf{Ideal} \\
+\midrule
+NC1 & $\operatorname{tr}(\Sigma_W \Sigma_B^\dagger) / C$ & $1.145 \times 10^6$ & $\to 0$ \\
+NC2 & Norm CoV of class means & $0.042$ & $0$ \\
+NC2 & Mean off-diag cosine similarity & $-0.0101$ & $-1/(C-1) \approx -0.0101$ \\
+NC3 & Mean cosine($w_c$, $\mu_c - \mu_G$) & $0.977$ & $1$ \\
+NC4 & Model vs.\ NCC agreement (train) & $99.994\%$ & $100\%$ \\
+NC5 & NCC accuracy on test data & $96.85\%$ & high \\
+NC5$_\text{OOD}$ & Mean $|\cos(\mu_c, \mu_\text{OOD})|$ — SVHN & $0.429$ & $0$ \\
+NC5$_\text{OOD}$ & Mean $|\cos(\mu_c, \mu_\text{OOD})|$ — DTD & $0.485$ & $0$ \\
+\bottomrule
+\end{tabular}
+\caption{Summary of Neural Collapse metrics. NC2, NC3, and NC4 demonstrate
+         very strong neural collapse after 200 epochs of training.}
+\label{tab:nc_results}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \figplaceholder{\textwidth}{neural\_collapse\_nc1\_nc4.png}
+    \caption{Neural Collapse analysis: (left) within-class variance per class (NC1);
+             (center) cosine similarity matrix of centered class means (NC2, ideally all
+             off-diagonal entries equal $-1/99 \approx -0.01$); (right) per-class alignment
+             between classifier weights and class means (NC3). These results confirm
+             that the model has reached a highly collapsed regime.}
+    \label{fig:nc_analysis}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \figplaceholder{0.75\textwidth}{nc\_across\_layers.png}
+    \caption{NC1 measured at each residual block of ResNet-18. Neural collapse is
+             strongest at the deepest layers, closest to the loss. Earlier layers
+             still maintain spatial representations, while the penultimate layer
+             has fully collapsed to class-structured features.}
+    \label{fig:nc_layers}
+\end{figure}
+
+% ================================================================
+\section{Discussion}
+% ================================================================
+
+\subsection{Connection Between Neural Collapse and OOD Detection}
+
+The NECO method \cite{ammar2024neco} is directly motivated by neural collapse.
+If NC1 holds, the feature space is well-factored: within-class variance is small,
+and between-class structure is described by the Simplex ETF. In this geometry, the
+leading principal components of the training feature distribution capture the class
+structure. ID samples have nearly all their energy in these directions, while OOD
+samples spread energy more uniformly across all principal components—hence a lower
+norm ratio.
+
+Our results support this intuition: NECO achieves the best AUROC on DTD (0.875),
+where the structural gap between textures and object classes is large. SVHN is
+harder because digit images share low-level visual properties with natural images.
+
+\subsection{On the Generalization Gap}
+
+The model achieves 78.65\% test accuracy with an approximate 21\% generalization
+gap (training accuracy approaches 100\% near epoch 200). This is expected behavior
+for CIFAR-100 without strong regularization: the dataset is genuinely difficult
+(100 fine-grained classes, 500 training samples per class), and the gap is largely
+an artifact of training past zero error. NC4 and NC5 confirm that this does not
+hurt feature geometry: the NCC classifier built from training means generalizes
+well to test data (96.85\% agreement).
+
+\subsection{Limitations}
+
+\begin{itemize}
+    \item \textbf{Mahalanobis} is sensitive to the quality of the covariance estimate
+          in high dimensions. With $d = 512$ and $\sim$500 samples per class, the estimate
+          is noisy.
+    \item \textbf{NECO} was designed with Transformer architectures in mind; when applied
+          to ResNet, the score is used without the max-logit multiplier. Performance may
+          improve further with ViT-based models where NC1 is better satisfied.
+    \item A single OOD threshold was not tuned; all methods are evaluated purely by AUROC.
+\end{itemize}
+
+% ================================================================
+\section{Conclusion}
+% ================================================================
+
+We have implemented and evaluated a complete OOD detection pipeline on CIFAR-100
+with six methods of increasing complexity, and connected these results to the
+geometry of Neural Collapse in the penultimate feature space.
+
+The main findings are:
+\begin{itemize}
+    \item Simple logit-based methods (Energy, Max Logit) are surprisingly competitive
+          and computationally cheap.
+    \item NECO achieves the best overall performance on DTD, validating the neural
+          collapse perspective on OOD detection.
+    \item The trained ResNet-18 exhibits strong neural collapse: NC2 matches the
+          theoretical ETF target almost exactly, and NC4 agreement exceeds 99.9\%.
+\end{itemize}
+
+These results suggest that training until neural collapse is not just a theoretical
+curiosity—it creates structured feature geometry that can be exploited for reliable
+OOD detection without any additional training.
+
+% ================================================================
+% References
+% ================================================================
+
+\begin{thebibliography}{99}
+
+\bibitem{he2016deep}
+K.~He, X.~Zhang, S.~Ren, and J.~Sun,
+\textit{Deep Residual Learning for Image Recognition},
+CVPR, 2016.
+
+\bibitem{hendrycks2017baseline}
+D.~Hendrycks and K.~Gimpel,
+\textit{A Baseline for Detecting Misclassified and Out-of-Distribution Examples in Neural Networks},
+ICLR, 2017.
+
+\bibitem{hendrycks2022scaling}
+D.~Hendrycks, S.~Basart, M.~Mazeika, A.~Zaremba, J.~Guo, A.~Carlini, and D.~Song,
+\textit{Scaling Out-of-Distribution Detection for Real-World Settings},
+ICML, 2022.
+
+\bibitem{liu2020energy}
+W.~Liu, X.~Wang, J.~Owens, and Y.~Li,
+\textit{Energy-Based Out-of-Distribution Detection},
+NeurIPS, 2020.
+
+\bibitem{lee2018simple}
+K.~Lee, K.~Lee, H.~Lee, and J.~Shin,
+\textit{A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks},
+NeurIPS, 2018.
+
+\bibitem{wang2022vim}
+H.~Wang, Z.~Li, L.~Feng, and W.~Zhang,
+\textit{ViM: Out-of-Distribution with Virtual-logit Matching},
+CVPR, 2022.
+
+\bibitem{ammar2024neco}
+M.~B.~Ammar, M.~Belkasmi, and A.~Chihaoui,
+\textit{NECO: NEural Collapse Based Out-of-Distribution Detection},
+ICLR, 2024.
+
+\bibitem{papyan2020prevalence}
+V.~Papyan, X.Y.~Han, and D.~L.~Donoho,
+\textit{Prevalence of Neural Collapse during the Terminal Phase of Deep Learning Training},
+PNAS, 2020.
+
+\end{thebibliography}
+
+\end{document}

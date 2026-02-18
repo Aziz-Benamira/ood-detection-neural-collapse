@@ -2,17 +2,6 @@
 """
 Evaluate OOD (Out-of-Distribution) detection methods.
 
-Must be run AFTER training — requires a saved checkpoint.
-
-Usage
------
-    python scripts/evaluate_ood.py \\
-        --checkpoint outputs/checkpoints/best_model.pth \\
-        --data-dir ./data \\
-        --output-dir ./outputs
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
 """
 
 import argparse
