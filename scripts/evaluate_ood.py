@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-Evaluate OOD (Out-of-Distribution) detection methods.
-
-"""
-
 import argparse
 import json
 import logging
@@ -85,15 +80,15 @@ def main():
     setup_logging(log_dir)
     logger = logging.getLogger(__name__)
 
-    # ---- Reproducibility ----
+    #    Reproducibility   
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    # ---- Device ----
+    #    Device   
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info("Using device: %s", device)
 
-    # ---- Data ----
+    #    Data   
     loaders = get_dataloaders(
         data_dir=args.data_dir,
         batch_size=args.batch_size,
@@ -102,7 +97,7 @@ def main():
         cifar_std=CIFAR100_STD,
     )
 
-    # ---- Model ----
+    #Model 
     model = build_resnet18_cifar(num_classes=NUM_CLASSES).to(device)
     state = torch.load(args.checkpoint, map_location=device)
     # Handle both raw state_dict and full checkpoint
@@ -113,7 +108,7 @@ def main():
     model.eval()
     logger.info("Loaded model from %s", args.checkpoint)
 
-    # ---- Feature extraction ----
+    #Feature extraction   
     logger.info("Extracting features from CIFAR-100 train set...")
     train_features, train_logits, train_labels = extract_features_and_logits(
         model, loaders['train'], device,
@@ -124,15 +119,14 @@ def main():
         model, loaders['test'], device,
     )
 
-    # ---- Evaluate on SVHN ----
+    #Evaluate on SVHN   
     logger.info("Extracting features from SVHN (out-of-distribution)...")
     ood_features_svhn, ood_logits_svhn, _ = extract_features_and_logits(
         model, loaders['svhn'], device,
     )
 
-    logger.info("\n" + "=" * 60)
-    logger.info("OOD Detection: CIFAR-100 (ID) vs SVHN (OOD)")
-    logger.info("=" * 60)
+    logger.info("\nOOD Detection: CIFAR-100 (ID) vs SVHN (OOD)")
+
 
     svhn_results = evaluate_all_ood_methods(
         model=model,
@@ -147,7 +141,7 @@ def main():
         temperature=args.temperature,
     )
 
-    # Plots
+    #Plots
     plot_ood_score_distributions(
         {k: v for k, v in svhn_results.items() if not k.startswith('_')},
         plot_dir, ood_name="SVHN",
@@ -175,7 +169,7 @@ def main():
         ood_name="SVHN",
     )
 
-    # ---- Evaluate on DTD (if available) ----
+    #Evaluate on DTD (if available)   
     dtd_aurocs = {}
     if loaders['dtd'] is not None:
         logger.info("\nExtracting features from DTD (out-of-distribution)...")
@@ -183,10 +177,7 @@ def main():
             model, loaders['dtd'], device,
         )
 
-        logger.info("\n" + "=" * 60)
-        logger.info("OOD Detection: CIFAR-100 (ID) vs DTD (OOD)")
-        logger.info("=" * 60)
-
+        logger.info("\nOOD Detection: CIFAR-100 (ID) vs DTD (OOD)")
         dtd_results = evaluate_all_ood_methods(
             model=model,
             train_features=train_features,
@@ -223,10 +214,9 @@ def main():
 
         dtd_aurocs = {k: v['auroc'] for k, v in dtd_results.items() if not k.startswith('_')}
 
-    # ---- Final summary ----
-    logger.info("\n" + "=" * 60)
+    #Final summary   
+    
     logger.info("FINAL OOD DETECTION COMPARISON")
-    logger.info("=" * 60)
     methods = [k for k in svhn_results if not k.startswith('_')]
     logger.info("%-20s %15s %15s", "Method", "AUROC (SVHN)", "AUROC (DTD)")
     logger.info("-" * 55)

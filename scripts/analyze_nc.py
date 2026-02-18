@@ -1,18 +1,11 @@
 #!/usr/bin/env python3
 """
 Run the full Neural Collapse analysis (NC1–NC5 + bonus across layers).
-
-Must be run AFTER training — requires a saved checkpoint.
-
 Usage
------
     python scripts/analyze_nc.py \\
         --checkpoint outputs/checkpoints/best_model.pth \\
         --data-dir ./data \\
         --output-dir ./outputs
-
-Author: Aziz BEN AMIRA
-Course: Theory of Deep Learning (MVA + ENSTA)
 """
 
 import argparse
@@ -90,15 +83,15 @@ def main():
     setup_logging(log_dir)
     logger = logging.getLogger(__name__)
 
-    # ---- Reproducibility ----
+    #   Reproducibility  
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    # ---- Device ----
+    #   Device  
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info("Using device: %s", device)
 
-    # ---- Data ----
+    #   Data  
     loaders = get_dataloaders(
         data_dir=args.data_dir,
         batch_size=args.batch_size,
@@ -107,7 +100,7 @@ def main():
         cifar_std=CIFAR100_STD,
     )
 
-    # ---- Model ----
+    #   Model  
     model = build_resnet18_cifar(num_classes=NUM_CLASSES).to(device)
     state = torch.load(args.checkpoint, map_location=device)
     if isinstance(state, dict) and 'model_state_dict' in state:
@@ -117,7 +110,7 @@ def main():
     model.eval()
     logger.info("Loaded model from %s", args.checkpoint)
 
-    # ---- Feature extraction ----
+    #   Feature extraction  
     logger.info("Extracting features from CIFAR-100 train set...")
     train_features, train_logits, train_labels = extract_features_and_logits(
         model, loaders['train'], device,
@@ -128,12 +121,12 @@ def main():
         model, loaders['test'], device,
     )
 
-    # ---- Compute class means (used by NC5) ----
+    #   Compute class means (used by NC5)  
     class_means, _, _ = compute_class_statistics(
         train_features, train_labels, NUM_CLASSES,
     )
 
-    # ---- NC1 – NC5 ----
+    #   NC1 – NC5  
     nc_results = run_full_nc_analysis(
         model=model,
         train_features=train_features,
@@ -145,7 +138,7 @@ def main():
         num_classes=NUM_CLASSES,
     )
 
-    # ---- Plots ----
+    #   Plots  
     plot_neural_collapse(
         per_class_var=nc_results['per_class_var'],
         cos_sim_matrix=nc_results['nc2_cos_sim_matrix'],
@@ -160,7 +153,7 @@ def main():
         output_dir=plot_dir,
     )
 
-    # ---- Bonus: NC across layers ----
+    #   Bonus: NC across layers  
     if not args.skip_across_layers:
         nc1_per_layer, pcv_per_layer = measure_nc_across_layers(
             model=model,
@@ -174,7 +167,7 @@ def main():
 
         nc_results['nc_across_layers'] = {k: float(v) for k, v in nc1_per_layer.items()}
 
-    # ---- Save results as JSON ----
+    #   Save results as JSON  
     # Convert numpy arrays to lists for JSON serialization
     serializable = {}
     for k, v in nc_results.items():
